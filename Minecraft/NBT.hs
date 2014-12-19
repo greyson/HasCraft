@@ -40,6 +40,13 @@ showEntryCount n = show n ++ " entries"
 
 showIndent n = take (3 * n) $ cycle " "
 
+instance Show NBT where
+  show (NBTByte i) = show i
+  show (NBTShort s) = show s
+  show (NBTInt a) = show a
+  show (NBTString s) = show s
+  show x = showPretty 0 x
+
 instance PrettyPrintable NBT where
   showPretty indent (NBTCompound l) =
     let showNext x = showPretty (succ indent) x ++ "\n"
@@ -48,19 +55,22 @@ instance PrettyPrintable NBT where
        ++ concat (map showNext l)
        ++ showIndent indent ++ "}"
 
-instance PrettyPrintable NBTNamed where
-  showPretty indent other = showIndent indent ++ show other
-
+  showPretty indent (NBTList l) =
+    let showElem x =
+          tagName x ++ "(): "
+          ++ showPretty (succ indent) x ++ "\n"
+    in showEntryCount (length l) ++ "\n"
+       ++ showIndent indent ++ "[\n"
+       ++ concat (map showElem l)
+       ++ showIndent indent ++ "]"
+  showPretty indent other =
+    showIndent indent ++ show other
 
 instance Show NBTNamed where
   show (NBTNamed (name, nbt)) = tagName nbt ++ "(" ++ show name ++ "): " ++ show nbt
 
-instance Show NBT where
-  show (NBTByte i) = show i
-  show (NBTShort s) = show s
-  show (NBTInt a) = show a
-  show (NBTString s) = show s
-  show x = showPretty 0 x
+instance PrettyPrintable NBTNamed where
+  showPretty indent other = showIndent indent ++ show other
 
 tagName (NBTByte _) = "TAG_Byte"
 tagName (NBTShort _) = "TAG_Short"
