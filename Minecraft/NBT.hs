@@ -2,17 +2,24 @@
 module Minecraft.NBT where
 
 import Data.Binary (Binary(..))
-import Data.Binary.Get (Get(..))
+import Data.Binary.Get (Get(..), runGet, runGetOrFail, ByteOffset,
+                        getWord8, getWord16le, getWord32le, getWord64le, getByteString)
 import Data.Binary.Put (Put(..), runPut,
-                        putWord8, putWord16be, putWord32be, putWord64be, putByteString)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as B
+                        putWord8, putWord16le, putWord32le, putWord64le, putByteString)
+import Data.ByteString.Lazy (ByteString, toStrict, fromStrict)
+import qualified Data.ByteString.Lazy.UTF8 as UTF8
+import qualified Data.ByteString.Lazy as BL
 import Data.Int (Int8, Int16, Int32, Int64)
 import Data.Map (Map(..))
 import Data.ReinterpretCast
 import Data.Typeable (cast)
 import Data.Word (Word8, Word16, Word32, Word64)
-import Codec.Binary.UTF8.String (encode)
+
+class Taggable a where
+  tagType :: a -> Word8
+
+class NBTElement a where
+  toNbt :: a -> NBT
 
 data NBT = NBTByte Int8
          | NBTShort Int16
@@ -21,16 +28,37 @@ data NBT = NBTByte Int8
          | NBTString String
          | NBTList [NBT]
          | NBTCompound [NBTNamed]
+         | NBTEnd
 
 newtype NBTNamed = NBTNamed (String, NBT)
 
-class Taggable a where
-  tagType :: a -> Word8
-  putNamed :: Binary a => String -> a -> Put
-  putNamed s t = do
-    putWord8 $ tagType t
-    put (NBTString s)
-    put t
+instance Taggable () where
+  tagType _ = 0
+instance Taggable Int8 where
+  tagType _ = 1
+instance Taggable Int16 where
+  tagType _ = 2
+instance Taggable Int32 where
+  tagType _ = 3
+instance Taggable Int64 where
+  tagType _ = 4
+instance Taggable Float where
+  tagType _ = 5
+instance Taggable Double where
+  tagType _ = 6
+instance Taggable ByteString where
+  tagType _ = 7
+instance Taggable String where
+  tagType _ = 8
+instance Taggable a => Taggable [a] where
+  tagType _ = 9
+instance Taggable [NBTNamed] where
+  tagType _ = 10
+
+
+getTag :: Taggable a => a -> Word8
+getTag a = tagType a
+
 
 class PrettyPrintable a where
   showPretty :: Int -> a -> String
@@ -81,32 +109,6 @@ tagName (NBTList _) = "TAG_List"
 tagName (NBTCompound _) = "TAG_Compound"
 
 
-instance Taggable NBT where
-  tagType (NBTByte a) = 1
-  tagType (NBTShort a) = 2
-  tagType (NBTInt a) = 3
-  tagType (NBTLong a) = 4
-  tagType (NBTString a) = 8
-
-  tagType (NBTList a) = 9
-  tagType (NBTCompound a) = 10
-
-instance Binary NBT where
-  put (NBTByte a) = putWord8 $ fromIntegral a
-  put (NBTShort a) = putWord16be $ fromIntegral a
-  put (NBTInt a) = putWord32be $ fromIntegral a
-  put (NBTLong a) = putWord64be $ fromIntegral a
-  put (NBTString s) = do
-    putWord32be $ fromIntegral (length s)
-    foldl (>>) (return ()) . (map putWord8) $ encode s
-  put (NBTList l) = do
-    putWord8 $ tagType (head l)
-    putWord32be $ fromIntegral (length l)
-    foldl (>>) (return ()) $ map put l
-  put (NBTCompound m) = undefined
-
-  -- get can only be used for named stuff
-  get = undefined
 {-
 tagType (NBTByte _) = 1
 tagType (NBTShort _) = 2
@@ -131,3 +133,59 @@ instance Binary Tag where
   put (NBTCompound m) = do
     putWord8 (tagType (NBTCompound m))
 -}
+
+{- | Define types which can act as the payload in NBT values.
+ -}
+class Payloadable a where
+  payload :: a -> Put
+  payunload :: Get a
+
+instance Payloadable Int8 where
+  payload = putWord8 . fromIntegral
+  payunload = fromIntegral `fmap` getWord8
+instance Payloadable Int16 where
+  payload = putWord16le . fromIntegral
+  payunload = fromIntegral `fmap` getWord16le
+instance Payloadable Int32 where
+  payload = putWord32le . fromIntegral
+  payunload = fromIntegral `fmap` getWord32le
+instance Payloadable Int64 where
+  payload = putWord64le . fromIntegral
+  payunload = fromIntegral `fmap` getWord64le
+instance Payloadable Float where
+  payload = putWord32le . floatToWord
+  payunload = wordToFloat `fmap` getWord32le
+instance Payloadable Double where
+  payload = putWord64le . doubleToWord
+  payunload = wordToDouble `fmap` getWord64le
+instance Payloadable ByteString where
+  payload a = do
+    putWord32le $ fromIntegral (BL.length a)
+    putByteString $ toStrict a
+  payunload = do
+    bytelen <- fromIntegral `fmap` getWord32le
+    fromStrict `fmap` getByteString bytelen
+instance Payloadable String where
+  payload s = do
+    let bs = UTF8.fromString s
+    putWord16le $ fromIntegral (BL.length bs)
+    putByteString $ toStrict bs
+  payunload = do
+    bytelen <- fromIntegral `fmap` getWord16le
+    getByteString bytelen >>= return . UTF8.toString . fromStrict
+
+newtype NBTFile = NBTFile (String, [(String,NBT)])
+
+instance Show NBTFile where
+  show (NBTFile (name, l)) = showPretty 0 (NBTNamed (name, NBTCompound $ map NBTNamed l))
+
+instance Binary NBTFile where
+  put = undefined
+  get = do
+    10 <- getWord8
+    name <- payunload
+    -- Parse the rest
+    return $ NBTFile (name, [])
+
+nbtGet :: Get NBTFile
+nbtGet = get
