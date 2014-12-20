@@ -15,13 +15,20 @@ import Data.ReinterpretCast
 import Data.Typeable (cast)
 import Data.Word (Word8, Word16, Word32, Word64)
 
+{-
+ - SECOND DRAFT BELOW
+ -
+ -    I'm just saving it for the pretty printing later.
+ -}
+
+
 class Taggable a where
   tagType :: a -> Word8
 
 class NBTElement a where
   toNbt :: a -> NBT
 
-data NBT = NBTEnd
+data NBT' = NBTEnd
          | NBTByte Int8
          | NBTShort Int16
          | NBTInt Int32
@@ -30,11 +37,11 @@ data NBT = NBTEnd
          | NBTDouble Double
          | NBTByteArray ByteString
          | NBTString String
-         | NBTList [NBT]
+         | NBTList [NBT']
          | NBTCompound [NBTNamed]
          | NBTIntList [Int32]
 
-newtype NBTNamed = NBTNamed (String, NBT)
+newtype NBTNamed = NBTNamed (String, NBT')
 
 instance Taggable () where
   tagType _ = 0
@@ -72,14 +79,14 @@ showEntryCount n = show n ++ " entries"
 
 showIndent n = take (3 * n) $ cycle " "
 
-instance Show NBT where
+instance Show NBT' where
   show (NBTByte i) = show i
   show (NBTShort s) = show s
   show (NBTInt a) = show a
   show (NBTString s) = show s
   show x = showPretty 0 x
 
-instance PrettyPrintable NBT where
+instance PrettyPrintable NBT' where
   showPretty indent (NBTCompound l) =
     let showNext x = showPretty (succ indent) x ++ "\n"
     in showEntryCount (length l) ++ "\n"
@@ -192,14 +199,14 @@ instance Binary NBTFile where
     -- Parse the rest
     return $ NBTFile (name, all)
 
-getList :: Get [NBT]
+getList :: Get [NBT']
 getList = do
   t <- getWord8
   len <- fromIntegral `fmap` (payunload :: Get Int32)
   value <- sequence $ take len $ repeat (getNBT t)
   return value
 
-getNBT :: Word8 -> Get NBT
+getNBT :: Word8 -> Get NBT'
 getNBT t = case t of
       1 -> fmap NBTByte payunload
       2 -> fmap NBTShort payunload
