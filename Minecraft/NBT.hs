@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Minecraft.NBT where
 
+import Control.Applicative ( (<$>) )
 import Data.Binary (Binary(..))
 import Data.Binary.Get (Get(..), runGet, runGetOrFail, ByteOffset,
                         getWord8, getWord16le, getWord32le, getWord64le, getByteString)
@@ -12,8 +13,90 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Int (Int8, Int16, Int32, Int64)
 import Data.Map (Map(..))
 import Data.ReinterpretCast
+import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Data.Typeable (cast)
 import Data.Word (Word8, Word16, Word32, Word64)
+
+import qualified Data.Text as T
+
+data TagType = EndType
+             | ByteType
+             | ShortType
+             | IntType
+             | LongType
+             | FloatType
+             | DoubleType
+             | ByteArrayType
+             | StringType
+             | ListType
+             | CompoundType
+             | IntArrayType
+             deriving (Show, Eq, Enum)
+
+instance Binary TagType where
+  get = (toEnum . fromIntegral) `fmap` getWord8
+  put = putWord8 . fromIntegral . fromEnum
+
+data NBT = NBT T.Text NBTPayload
+         deriving (Show, Eq)
+
+data NBTPayload = EndTag
+                | ByteTag Int8
+                | ShortTag Int16
+                | IntTag Int32
+                | LongTag Int64
+                | FloatTag Float
+                | DoubleTag Double
+                | ByteArrayTag ByteString
+                | StringTag T.Text
+                | ListTag TagType [NBTPayload]
+                | CompoundTag [NBT]
+                | IntArrayTag [Int32]
+                deriving (Show, Eq)
+
+getByType :: TagType -> Get NBTPayload
+getByType ByteType = ByteTag . fromIntegral <$> getWord8
+getByType ShortType = ShortTag . fromIntegral <$> getWord16le
+getByType IntType = IntTag . fromIntegral <$> getWord32le
+getByType LongType = LongTag . fromIntegral <$> getWord64le
+getByType FloatType = FloatTag . wordToFloat <$> getWord32le
+getByType DoubleType = DoubleTag . wordToDouble <$> getWord64le
+getByType ByteArrayType = do
+  len <- fromIntegral <$> getWord32le
+  ByteArrayTag . fromStrict <$> getByteString len
+getByType StringType = do
+  StringTag <$> getStringValue
+getByType ListType = do
+  typ <- get
+  len <- fromIntegral <$> getWord32le
+  ListTag typ <$> (sequence $ take len $ repeat (getByType typ))
+getByType CompoundType = CompoundTag <$> getToEnd
+  where
+    getToEnd = do
+      typ <- get
+      if typ == EndType
+        then return []
+        else do
+        name <- getStringValue
+        payload <- getByType typ
+        ((NBT name payload):) <$> getToEnd
+getByType IntArrayType = do
+  len <- fromIntegral <$> getWord32le
+  IntArrayTag <$> (sequence $ take len $
+                   repeat (fromIntegral <$> getWord32le))
+
+getStringValue :: Get T.Text
+getStringValue = do
+  len <- fromIntegral <$> getWord16le
+  decodeUtf8 <$> getByteString len
+
+instance Binary NBT where
+  put = undefined
+  get = do
+    CompoundType <- get
+    name <- getStringValue
+    payload <- getByType CompoundType
+    return $ NBT name payload
 
 {-
  - SECOND DRAFT BELOW
@@ -231,5 +314,5 @@ getNBTNamed prev = do
     getNBTNamed (prev ++ [NBTNamed (name, value)])
 
 
-nbtGet :: Get NBTFile
+nbtGet :: Get NBT
 nbtGet = get
