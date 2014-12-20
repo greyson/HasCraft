@@ -12,8 +12,5 @@ path = "My World/db"
 
 -- DB.open ::
 
-{-
-getPlayer :: IO (NBT.NBT)
-getPlayer = print $ runResourceT $ do
-  DB.open path >>= DB.getNbt DB.LocalPlayer
--}
+getPlayer :: IO (Maybe NBT)
+getPlayer = runResourceT $ open path >>= getNbt LocalPlayer

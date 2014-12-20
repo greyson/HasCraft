@@ -11,7 +11,6 @@ import Data.Binary.Get (getWord32le, lookAheadM)
 import Data.ByteString.Lazy (ByteString, toStrict, fromStrict)
 import Data.ByteString.Char8 (pack)
 import Data.Int (Int64(..))
-import Data.Maybe (fromJust)
 import Data.NBT.MCPE (NBT(..), readNbt)
 import Data.Word (Word8(..), Word32(..))
 import Database.LevelDB (withIterator, defaultReadOptions,

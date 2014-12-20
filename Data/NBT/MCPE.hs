@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
-module Data.NBT.MCPE where
+module Data.NBT.MCPE ( readDat
+                     , readNbt
+                     ) where
 
 import Control.Applicative ( (<$>) )
 import Control.Monad (replicateM)
@@ -182,6 +184,20 @@ prettyPrintBinary prefix bin =
       showHexidecimal bin
         | BL.null bin = []
         | otherwise = printf "%02x" (BL.head bin) ++ showHexidecimal (BL.tail bin)
+
+data Dat = Dat Int NBT
+         deriving Show
+
+instance Binary Dat where
+  put = undefined
+  get = do
+    4 <- getWord32le
+    len <- getWord32le
+    nbt <- get
+    return $ Dat 4 nbt
+
+readDat :: ByteString -> Dat
+readDat = runGet get
 
 readNbt :: ByteString -> NBT
 readNbt = runGet get
