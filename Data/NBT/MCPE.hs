@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
-module Minecraft.NBT where
+module Data.NBT.MCPE where
 
 import Control.Applicative ( (<$>) )
 import Control.Monad (replicateM)
