@@ -21,14 +21,18 @@ class Taggable a where
 class NBTElement a where
   toNbt :: a -> NBT
 
-data NBT = NBTByte Int8
+data NBT = NBTEnd
+         | NBTByte Int8
          | NBTShort Int16
          | NBTInt Int32
          | NBTLong Int64
+         | NBTFloat Float
+         | NBTDouble Double
+         | NBTByteArray ByteString
          | NBTString String
          | NBTList [NBT]
          | NBTCompound [NBTNamed]
-         | NBTEnd
+         | NBTIntList [Int32]
 
 newtype NBTNamed = NBTNamed (String, NBT)
 
@@ -188,6 +192,27 @@ instance Binary NBTFile where
     -- Parse the rest
     return $ NBTFile (name, all)
 
+getList :: Get [NBT]
+getList = do
+  t <- getWord8
+  len <- fromIntegral `fmap` (payunload :: Get Int32)
+  value <- sequence $ take len $ repeat (getNBT t)
+  return value
+
+getNBT :: Word8 -> Get NBT
+getNBT t = case t of
+      1 -> fmap NBTByte payunload
+      2 -> fmap NBTShort payunload
+      3 -> fmap NBTInt payunload
+      4 -> fmap NBTLong payunload
+      5 -> fmap NBTFloat payunload
+      6 -> fmap NBTDouble payunload
+      7 -> fmap NBTByteArray payunload
+      8 -> fmap NBTString payunload
+      9 -> fmap NBTList getList
+      10 -> return $ NBTCompound [] -- TODO: testing
+      11 -> return $ NBTList []
+
 getNBTNamed :: [NBTNamed] -> Get [NBTNamed]
 getNBTNamed prev = do
   t <- getWord8
@@ -195,8 +220,7 @@ getNBTNamed prev = do
     then return prev
     else do
     name <- payunload :: Get String
-    value <- case t of
-      8 -> fmap NBTString payunload
+    value <- getNBT t
     getNBTNamed (prev ++ [NBTNamed (name, value)])
 
 
