@@ -174,18 +174,31 @@ instance Payloadable String where
     bytelen <- fromIntegral `fmap` getWord16le
     getByteString bytelen >>= return . UTF8.toString . fromStrict
 
-newtype NBTFile = NBTFile (String, [(String,NBT)])
+newtype NBTFile = NBTFile (String, [NBTNamed])
 
 instance Show NBTFile where
-  show (NBTFile (name, l)) = showPretty 0 (NBTNamed (name, NBTCompound $ map NBTNamed l))
+  show (NBTFile (name, l)) = showPretty 0 (NBTNamed (name, NBTCompound l))
 
 instance Binary NBTFile where
   put = undefined
   get = do
     10 <- getWord8
     name <- payunload
+    all <- getNBTNamed []
     -- Parse the rest
-    return $ NBTFile (name, [])
+    return $ NBTFile (name, all)
+
+getNBTNamed :: [NBTNamed] -> Get [NBTNamed]
+getNBTNamed prev = do
+  t <- getWord8
+  if t == 0
+    then return prev
+    else do
+    name <- payunload :: Get String
+    value <- case t of
+      8 -> fmap NBTString payunload
+    getNBTNamed (prev ++ [NBTNamed (name, value)])
+
 
 nbtGet :: Get NBTFile
 nbtGet = get
