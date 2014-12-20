@@ -4,7 +4,7 @@ module Data.NBT.MCPE where
 import Control.Applicative ( (<$>) )
 import Control.Monad (replicateM)
 import Data.Binary (Binary(..))
-import Data.Binary.Get (Get(..),
+import Data.Binary.Get (Get(..), runGet,
                         getWord8, getWord16le, getWord32le, getWord64le, getByteString)
 import Data.Binary.Put (Put(..),
                         putWord8, putWord16le, putWord32le, putWord64le, putByteString)
@@ -137,10 +137,7 @@ instance PrettyPrintable NBTPayload where
   showPretty _ (DoubleTag d) = show d ++ "\n"
 
   showPretty ind (ByteArrayTag b) =
-    '\n' : (unlines $ map showBareLine (binGroupBy 40 b))
-    where
-      showBareLine l = indent (succ ind) ++ showGroups (binGroupBy 2 l)
-      showGroups g = unwords $ map prettyPrintBinary g
+    '\n' : prettyPrintBinary (indent $ succ ind) b
 
   showPretty _ (StringTag s) = show s ++ "\n"
 
@@ -176,11 +173,15 @@ binGroupBy n l
     let (line, rest) = BL.splitAt n l
     in line:binGroupBy n rest
 
-prettyPrintBinary :: ByteString -> String
-prettyPrintBinary bin
-  | BL.null bin = []
-  | otherwise = printf "%02x" (BL.head bin) ++ prettyPrintBinary (BL.tail bin)
+prettyPrintBinary :: String -> ByteString -> String
+prettyPrintBinary prefix bin =
+  (unlines $ map showBareLine (binGroupBy 40 bin))
+    where
+      showBareLine l = prefix ++ showGroups (binGroupBy 2 l)
+      showGroups g = unwords $ map showHexidecimal g
+      showHexidecimal bin
+        | BL.null bin = []
+        | otherwise = printf "%02x" (BL.head bin) ++ showHexidecimal (BL.tail bin)
 
-
-nbtGet :: Get NBT
-nbtGet = get
+readNbt :: ByteString -> NBT
+readNbt = runGet get
