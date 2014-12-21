@@ -36,6 +36,7 @@ data EntityFacet = Damagable { health :: Int }
                             , spawn :: Position
                             , sleepTimer :: Ticks
                             , sleeping :: Bool
+                              -- TODO: inventory/armor
                             , name :: Maybe T.Text }
                  deriving (Show, Ord, Eq)
 
@@ -229,7 +230,8 @@ readPlayable nbt = do
                   }
 
 positional nbt name = do
-  _x <- fromIntegral . NBT.asIntegral <$> nbt </> (name `T.snoc` 'X')
-  _y <- fromIntegral . NBT.asIntegral <$> nbt </> (name `T.snoc` 'Y')
-  _z <- fromIntegral . NBT.asIntegral <$> nbt </> (name `T.snoc` 'Z')
+  let coord c = fromIntegral . NBT.asIntegral <$> nbt </> (name `T.snoc` c)
+  _x <- coord 'X'
+  _y <- coord 'Y'
+  _z <- coord 'Z'
   return $ Position _x _y _z

@@ -1,6 +1,7 @@
 module Main where
 
 import Control.Applicative ( (<$>) )
+import Control.Monad.Trans.Maybe (runMaybeT)
 import Data.ByteString.Lazy (ByteString)
 import Data.Maybe (fromJust)
 import Database.LevelDB (runResourceT)
