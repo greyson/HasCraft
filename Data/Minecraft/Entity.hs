@@ -9,6 +9,7 @@ import Data.NBT.MCPE (NBT, (</>))
 import Data.NBT.MCPE ( NBTPayload(..) )
 
 import qualified Data.NBT.MCPE as NBT
+import qualified Data.Text as T
 
 data Entity = Entity { id :: EntityId
                      , position :: Position
@@ -27,12 +28,15 @@ data Entity = Entity { id :: EntityId
 data EntityFacet = Damagable { health :: Int }
                  | Fightable { attackTime :: Ticks
                              , deathTime :: Ticks
-                             , hurtTime :: Ticks
-                             }
+                             , hurtTime :: Ticks }
                  | Aging { age :: Ticks }
                  | Wooly { sheared :: Bool
-                         , color :: Color
-                         }
+                         , color :: Color }
+                 | Playable { bed :: Position
+                            , spawn :: Position
+                            , sleepTimer :: Ticks
+                            , sleeping :: Bool
+                            , name :: Maybe T.Text }
                  deriving (Show, Ord, Eq)
 
 nonEntity id position =
@@ -186,6 +190,7 @@ readFacets nbt =
                                , readAging
                                , readFightable
                                , readWooly
+                               , readPlayable
                                ]
 
 readDamagable nbt = do
@@ -209,3 +214,22 @@ readWooly nbt = do
   _color <- toEnum . NBT.asIntegral <$> nbt </> "Color"
   return $ Wooly { sheared = _shear
                  , color = _color }
+
+readPlayable nbt = do
+  _bed <- positional nbt "BedPosition"
+  _spawn <- positional nbt "Spawn"
+  _timer <- NBT.asIntegral <$> nbt </> "SleepTimer"
+  _sleep <- (==1) . NBT.asIntegral <$> nbt </> "Sleeping"
+
+  return Playable { bed = _bed
+                  , spawn = _spawn
+                  , sleepTimer = _timer
+                  , sleeping = _sleep
+                  , name = (\(StringTag s) -> s) <$> nbt </> "Name"
+                  }
+
+positional nbt name = do
+  _x <- fromIntegral . NBT.asIntegral <$> nbt </> (name `T.snoc` 'X')
+  _y <- fromIntegral . NBT.asIntegral <$> nbt </> (name `T.snoc` 'Y')
+  _z <- fromIntegral . NBT.asIntegral <$> nbt </> (name `T.snoc` 'Z')
+  return $ Position _x _y _z
