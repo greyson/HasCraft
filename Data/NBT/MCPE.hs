@@ -1,7 +1,22 @@
 {-# LANGUAGE FlexibleInstances #-}
-module Data.NBT.MCPE ( readDat
+module Data.NBT.MCPE ( NBT
+
+                       -- manipulating
+                     , lookup
+                     , value
+                     , (</>)
+
+                       -- dealing with payloads
+                     , TagType, NBTPayload(..)
+                     , asIntegral, asFloat, asDouble
+                     , asPosition, asRotation
+
+                       -- loading from binary
+                     , readDat
                      , readNbt
                      ) where
+
+import Prelude hiding (lookup, (/))
 
 import Control.Applicative ( (<$>) )
 import Control.Monad (replicateM)
@@ -16,6 +31,8 @@ import Data.Map (Map(..))
 import Data.ReinterpretCast (wordToFloat, wordToDouble)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Text.Printf (printf)
+
+import Data.Minecraft.Common
 
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as BL
@@ -37,6 +54,47 @@ data TagType = EndType
 instance Binary TagType where
   get = (toEnum . fromIntegral) `fmap` getWord8
   put = putWord8 . fromIntegral . fromEnum
+
+value :: NBT -> NBTPayload
+value (NBT _ pay) = pay
+
+asPosition :: NBTPayload -> Position
+asPosition (ListTag _ [FloatTag x, FloatTag y, FloatTag z]) =
+  Position x y z
+
+asRotation :: NBTPayload -> Rotation
+asRotation (ListTag _ [FloatTag yaw, FloatTag pitch]) =
+  Rotation yaw pitch
+
+asIntegral :: Integral a => NBTPayload -> a
+asIntegral (ByteTag x)  = fromIntegral x
+asIntegral (ShortTag x) = fromIntegral x
+asIntegral (IntTag x)   = fromIntegral x
+asIntegral (LongTag x)  = fromIntegral x
+
+asFloat (FloatTag x)  = x
+asDouble (DoubleTag x) = x
+
+lookup :: T.Text -> NBT -> [NBTPayload]
+lookup key (NBT _ (CompoundTag l)) =
+  map value $ filter (\(NBT t pay) -> t == key) l
+
+class Searchable a where
+  (</>) :: a -> T.Text -> Maybe NBTPayload
+
+instance Searchable NBTPayload where
+  (CompoundTag l) </> key =
+    case map value (filter (\(NBT t _) -> t == key) l) of
+      [] -> Nothing
+      [v] -> Just v
+  _ </> _ = Nothing
+
+instance Searchable NBT where
+  (NBT _ (CompoundTag l)) </> key = (CompoundTag l) </> key
+
+instance Searchable a => Searchable (Maybe a) where
+  Nothing </> _ = Nothing
+  (Just x) </> key = x </> key
 
 data NBT = NBT T.Text NBTPayload
          deriving (Eq)

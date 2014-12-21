@@ -7,6 +7,10 @@ import Database.LevelDB (runResourceT)
 
 import Data.NBT.MCPE
 import Database.MCPE
+import Data.Minecraft.Entity
+
+-- for interactive
+import qualified Data.Text as T
 
 path = "My World/db"
 
