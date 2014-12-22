@@ -13,9 +13,9 @@ type Terrain = ByteString
 
 getBlock :: Int -> Int -> Int -> Terrain -> BlockType
 getBlock x y z ter =
-  toEnum $ fromIntegral $ ter `index` coordToInt x y z
+  toEnum $ fromIntegral $ ter `index` (coordToInt x y z)
 
-coordToInt x y z = (16 * 16 * x) + (16 * z) + y
+coordToInt x y z = (128 * 16 * x) + (128 * z) + y
 
 data Chunk = Ungenerated
            | Chunk { terrain :: Terrain
