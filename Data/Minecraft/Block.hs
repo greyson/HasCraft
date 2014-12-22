@@ -1,4 +1,5 @@
-module Data.Minecraft.Block where
+module Data.Minecraft.Block
+       ( BlockType(..) ) where
 
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
