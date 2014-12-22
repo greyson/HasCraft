@@ -1,6 +1,8 @@
 module Data.Minecraft.Chunk where
 
 import Control.Applicative ( (<$>) )
+import Control.Monad.Trans (liftIO)
+import Control.Monad.Trans.Maybe (runMaybeT)
 import Data.Maybe (fromJust)
 import Data.Minecraft.Entity
 import Data.Minecraft.Block
@@ -26,7 +28,7 @@ data Chunk = Ungenerated
 -- TODO: Remove 'fromJust' to become NotFound or somesuch,
 -- then use the generator to make the next one.
 loadChunk x z db = do
-  maybeTerrain <- dbGet (Key x z TerrainData) db
-  return $ case maybeTerrain of
+  wholeTerrain <- dbGet (Key x z TerrainData) db
+  return $ case wholeTerrain of
     Nothing -> Ungenerated
-    Just terrain -> Chunk (BL.toStrict terrain) []
+    Just terrain -> Chunk (BL.toStrict $ BL.take (16*16*128) terrain) []
