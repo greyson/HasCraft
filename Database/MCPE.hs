@@ -23,6 +23,7 @@ import qualified Data.ByteString as B
 
 defaultOptions = DB.defaultOptions{ compression = Zlib }
 
+type Database = DB.DB
 open path = DB.open path defaultOptions
 
 getNbt key db = do
@@ -40,19 +41,19 @@ getDbProperty path p = runResourceT $ do
   db <- open path
   getProperty db p
 
-data Key = Key Word32 Word32 BlockType
+data Key = Key Int Int ChunkType
          | LocalPlayer
          deriving (Show, Eq)
 
-data BlockType = Terrain
+data ChunkType = TerrainData
                | TileEntity
                | Entity
                | OneByte
                | Unknown Word8
                deriving (Show, Eq)
 
-instance Binary BlockType where
-  put Terrain     = putWord8 0x30
+instance Binary ChunkType where
+  put TerrainData = putWord8 0x30
   put TileEntity  = putWord8 0x31
   put Entity      = putWord8 0x32
   put OneByte     = putWord8 0x76
@@ -60,7 +61,7 @@ instance Binary BlockType where
   get = do
     byte <- getWord8
     return $ case byte of
-      0x30  -> Terrain
+      0x30  -> TerrainData
       0x31  -> TileEntity
       0x32  -> Entity
       0x76  -> OneByte
@@ -69,8 +70,8 @@ instance Binary BlockType where
 instance Binary Key where
   put LocalPlayer = putByteString (pack "~local_player")
   put (Key x z t) = do
-    putWord32le x
-    putWord32le z
+    putWord32le $ fromIntegral x
+    putWord32le $ fromIntegral z
     put t
 
   get = do
@@ -81,8 +82,8 @@ instance Binary Key where
 
 
 getLocKey = do
-    x <- getWord32le
-    z <- getWord32le
+    x <- fromIntegral <$> getWord32le
+    z <- fromIntegral <$> getWord32le
     t <- Data.Binary.get
     return $ if (t == (Unknown 0x6C))
              then Nothing

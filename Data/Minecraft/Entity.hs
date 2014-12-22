@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Data.Minecraft.Entity where
 
 import Prelude hiding (id)
