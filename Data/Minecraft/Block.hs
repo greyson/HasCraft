@@ -3,6 +3,8 @@ module Data.Minecraft.Block where
 import Data.Maybe (fromJust)
 import Data.Tuple (swap)
 
+import qualified Data.Map as M
+
 {-
  - Yes, I know most of this code is terribly inefficient doing linear lookups
  - for everything. However! I'm currently in the "make it work" phase, which comes
@@ -45,11 +47,14 @@ instance Enum BlockType where
   fromEnum e =
     case e of
       Unknown i -> i
-      otherwise -> fromJust $ lookup e blockIds
+      otherwise -> fromJust $ M.lookup e enumMap
   toEnum i =
-    case lookup i (map swap blockIds) of
+    case M.lookup i idMap of
       Nothing -> Unknown i
       Just el -> el
+
+enumMap = M.fromList blockIds
+idMap = M.fromList (map swap blockIds)
 
 blockIds = [(Air, 0x00), (Stone, 0x01), (GrassBlock, 0x02), (Dirt, 0x03),
             (Cobblestone, 0x04), (OakPlank, 0x05), (Sapling, 0x06), (Bedrock, 0x07),
