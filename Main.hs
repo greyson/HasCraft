@@ -72,8 +72,9 @@ topView x z = runResourceT $ do
   -- Collect chunks which will be used on this screen (add one for safety for now)
   let ewChunks = [z `div` 16 -1 .. (z + w) `div` 16 +1]
   let nsChunks = [x `div` 16 -1 .. (x + h) `div` 16 +1]
-  sequence $ [(loadChunk i j db >>= liftIO . putStr . placeChunk x z w h) | i <- nsChunks, j <- ewChunks]
-  liftIO $ setSGR []
+
+  chunks <- sequence $ [loadChunk i j db | i <- nsChunks, j <- ewChunks]
+  liftIO $ putStr $ concatMap (placeChunk x z w h) chunks ++ setSGRCode []
 
 placeChunk _ _ _ _ Ungenerated = ""
 placeChunk x z width height chunk =
