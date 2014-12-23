@@ -45,14 +45,67 @@ splitN n list
 chunkBlockType :: Chunk -> [BlockType]
 chunkBlockType = map (toEnum . fromIntegral) . B.unpack . terrain
 
-topView x z = runResourceT $ do
+topViewChunk x z = runResourceT $ do
   db <- open path
   chunk <- loadChunk x z db
 
-  let bts = splitN 128 (chunkBlockType chunk)
-  let tops = map (head . dropWhile (==Air) . reverse) bts
+  let tops = chunkTopLayer chunk
   liftIO $ putStr $ unlines $ map (concat . (map colorize) . reverse) $ splitN 16 $ tops
   liftIO $ setSGR []
+
+chunkTopLayer chunk =
+  map (head . dropWhile (== Air) . reverse) $ splitN 128 (chunkBlockType chunk)
+
+topView x z w h = runResourceT $ do
+  db <- open path
+  let ewChunks = [z `div` 16 .. (z + w) `div` 16 + 1]
+  let nsChunks = [x `div` 16 .. (x + h) `div` 16 + 1]
+  chunks <- sequence $ [loadChunk i j db | i <- nsChunks, j <- ewChunks]
+  return chunks
+
+-- Render a chunk starting at the top left indicated; Do not fill
+-- beyond the width or height of the window given.
+
+renderChunk :: Int -> Int -> Int -> Int -> Chunk -> String
+renderChunk left top width height chunk
+  | top  <= (-16) || top > height = ""
+  | left <= (-16) || left > width = ""
+  | otherwise =
+    let right = left + 16
+        bottom = top + 16
+
+        xmin = max 0 left
+        xmax = min right width
+        xs = [xmin .. xmax]
+        ymin = max 0 top
+        ymax = min height bottom
+        ys = [ymin .. ymax]
+
+        padTop = if top < 0    then (-top)    else 0
+        padBot = if bottom > height then bottom - height else 0
+        padLft = if left < 0   then (-left)   else 0
+        padRht = if right > width  then right - width  else 0
+
+        ydrop = padTop
+        ykeep = 16 - padTop - padBot
+
+        xdrop = padLft
+        xkeep = 16 - padLft - padRht
+
+        -- Reorder the tops to read left -> right (clean cursor loading)
+        fullGrid = splitN 16 $ chunkTopLayer chunk
+        cropped = take ykeep $ drop ydrop $ map (take xkeep . drop xdrop . reverse) $ fullGrid
+
+        -- Add line numbers
+        lined = zip [ymin..] cropped
+
+        -- finally define our line renderer
+        renderLine blks =
+          setCursorColumnCode xmin ++
+          (concat $ map colorize blks) ++
+          cursorDownLineCode 1
+     in setCursorPositionCode ymin xmin ++
+        (concat $ map renderLine cropped)
 
 blockAnsi bt =
   case M.lookup bt ansiBlock of
