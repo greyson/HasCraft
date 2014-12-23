@@ -14,6 +14,9 @@ import Data.Minecraft.Entity
 import Data.Minecraft.Chunk
 import Data.Minecraft.Block
 import System.Console.ANSI
+import System.Environment
+
+import qualified System.Console.Terminal.Size as Term
 
 -- for interactive
 import qualified Data.ByteString as B
@@ -57,12 +60,29 @@ topViewChunk x z = runResourceT $ do
 chunkTopLayer chunk =
   map (head . dropWhile (== Air) . reverse) $ splitN 128 (chunkBlockType chunk)
 
-topView x z w h = runResourceT $ do
+topView x z = runResourceT $ do
   db <- open path
-  let ewChunks = [z `div` 16 .. (z + w) `div` 16 + 1]
-  let nsChunks = [x `div` 16 .. (x + h) `div` 16 + 1]
-  chunks <- sequence $ [loadChunk i j db | i <- nsChunks, j <- ewChunks]
-  return chunks
+
+  -- Get the size of the screen to which we're rendering
+  window <- liftIO $ Term.size
+  let (w, h) = case window of
+        Nothing -> (80,24) -- standard
+        Just win -> (Term.width win, Term.height win)
+
+  -- Collect chunks which will be used on this screen (add one for safety for now)
+  let ewChunks = [z `div` 16 -1 .. (z + w) `div` 16 +1]
+  let nsChunks = [x `div` 16 -1 .. (x + h) `div` 16 +1]
+  sequence $ [(loadChunk i j db >>= liftIO . putStr . placeChunk x z w h) | i <- nsChunks, j <- ewChunks]
+  liftIO $ setSGR []
+
+placeChunk _ _ _ _ Ungenerated = ""
+placeChunk x z width height chunk =
+  let wLeft = width - west chunk - (z) -16
+      wTop  = north chunk - (x)
+
+  in renderChunk wLeft wTop width height chunk
+
+main = getArgs >>= \[x, z] -> topView (read x) (read z)
 
 -- Render a chunk starting at the top left indicated; Do not fill
 -- beyond the width or height of the window given.
@@ -102,8 +122,8 @@ renderChunk left top width height chunk
 
         -- A helper to get us to the next line position
         nextLine =
-          setCursorColumnCode xmin ++
-          cursorDownLineCode 1
+          cursorDownLineCode 1 ++
+          setCursorColumnCode xmin
 
         -- finally define our line renderer
         renderLine blks = concat $ map colorize blks
