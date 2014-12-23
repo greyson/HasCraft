@@ -5,6 +5,7 @@ import Control.Monad.Trans (liftIO)
 import Control.Monad.Trans.Maybe (runMaybeT)
 import Data.ByteString.Lazy (ByteString)
 import Data.Maybe (fromJust)
+import Data.List (intercalate)
 import Database.LevelDB (runResourceT)
 
 import Data.NBT.MCPE
@@ -99,13 +100,16 @@ renderChunk left top width height chunk
         -- Add line numbers
         lined = zip [ymin..] cropped
 
-        -- finally define our line renderer
-        renderLine blks =
+        -- A helper to get us to the next line position
+        nextLine =
           setCursorColumnCode xmin ++
-          (concat $ map colorize blks) ++
           cursorDownLineCode 1
+
+        -- finally define our line renderer
+        renderLine blks = concat $ map colorize blks
+
      in setCursorPositionCode ymin xmin ++
-        (concat $ map renderLine cropped)
+        intercalate nextLine (map renderLine cropped)
 
 blockAnsi bt =
   case M.lookup bt ansiBlock of
