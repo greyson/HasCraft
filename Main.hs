@@ -25,20 +25,7 @@ import qualified Data.Text as T
 
 path = "My World/db"
 
--- DB.open ::
-
-getPlayer :: IO (Maybe NBT)
-getPlayer = runResourceT $ open path >>= getNbt LocalPlayer
-
-getChunk0Terrain db = loadChunk 1 0 db
-
-getBlockColumn x z ter =
-  map (\y -> getBlock x y z ter) [0..127]
-
-getChunkLayer y ter =
-  map (\(x,z) -> getBlock x y z ter) $ cartProd [0..15] [0..15]
-  where
-    cartProd is js = [(j,i) | i <- is, j <- js]
+main = getArgs >>= \[x, z] -> topView (read x) (read z)
 
 splitN n list
   | null list = []
@@ -48,14 +35,6 @@ splitN n list
 
 chunkBlockType :: Chunk -> [BlockType]
 chunkBlockType = map (toEnum . fromIntegral) . B.unpack . terrain
-
-topViewChunk x z = runResourceT $ do
-  db <- open path
-  chunk <- loadChunk x z db
-
-  let tops = chunkTopLayer chunk
-  liftIO $ putStr $ unlines $ map (concat . (map colorize) . reverse) $ splitN 16 $ tops
-  liftIO $ setSGR []
 
 chunkTopLayer chunk =
   map (head . dropWhile (== Air) . reverse) $ splitN 128 (chunkBlockType chunk)
@@ -82,8 +61,6 @@ placeChunk x z width height chunk =
       wTop  = north chunk - (x)
 
   in renderChunk wLeft wTop width height chunk
-
-main = getArgs >>= \[x, z] -> topView (read x) (read z)
 
 -- Render a chunk starting at the top left indicated; Do not fill
 -- beyond the width or height of the window given.
