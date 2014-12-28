@@ -25,6 +25,26 @@ testLoadChunk :: Integer -> Integer -> RecursesIO Chunk
 testLoadChunk x z = do
   open path >>= loadChunk x z
 
+testRenderChunk topBlock leftBlock chunkX chunkZ  = do
+  -- window related
+  (rows, cols) <- lift $ screenSize
+  let placeChunk = chunkPlacer topBlock leftBlock (fromIntegral (rows-1)) (fromIntegral cols)
+
+  -- chunk related
+  w <- lift $ defaultWindow
+  chunk <- open path >>= loadChunk chunkX chunkZ
+  lift $ updateWindow w (clearScreen rows cols)
+  lift $ updateWindow w $ mapM renderToUpdate $ placeChunk chunk
+  lift $ render
+
+clearScreen rows cols = do
+  let clearLine row = do
+        moveCursor row 0
+        drawString $ replicate (fromIntegral cols - (if row == (rows-1) then 1 else 0)) ' '
+  setColor defaultColorID
+  mapM clearLine (take (fromIntegral rows) [0..])
+  moveCursor 0 0
+
 -- The following combines the resource monad needed by LevelDB and the
 -- Curses monad.
 
