@@ -39,7 +39,9 @@ open path = DB.open path defaultOptions
 loadChunk x z db = do
   wholeTerrain <- dbGet (Key x z TerrainData) db
   return $ case wholeTerrain of
-    Nothing -> Ungenerated
+    Nothing -> Ungenerated { east = z * 16
+                           , north = x * 16
+                           }
     Just terrain -> Chunk { east = z * 16
                           , north = x * 16
                           , terrain = (BL.toStrict $ BL.take (16*16*128) terrain)

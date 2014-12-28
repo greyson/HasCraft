@@ -19,7 +19,9 @@ getBlock x y z ter =
 
 coordToIndex x y z = (128 * 16 * x) + (128 * z) + y
 
-data Chunk = Ungenerated
+data Chunk = Ungenerated { east :: Int
+                         , north :: Int
+                         }
            | Chunk { east  :: Int -- The most easterly coordinate of this chunk
                    , north :: Int -- The most northerly coordinate of this chunk
                    , terrain :: Terrain
