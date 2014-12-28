@@ -63,7 +63,7 @@ getDbProperty path p = runResourceT $ do
   db <- open path
   getProperty db p
 
-data Key = Key Int Int ChunkType
+data Key = Key Integer Integer ChunkType
          | LocalPlayer
          deriving (Show, Eq)
 
