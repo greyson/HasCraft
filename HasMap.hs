@@ -83,14 +83,18 @@ test topBlock leftBlock = do
     part of the screen given by `rows` and `cols`
 -}
 
-chunkPlacer topBlock leftBlock rows cols =
-  let ewBlockWindow = fromIntegral $ (cols `div` 2)
-      nsBlockWindow = fromIntegral $ (rows `div` 2)
+data RenderInstructions = MoveCursor Int Int
+                        | DrawString String
 
-      topBlockOffset = -(topBlock `mod` 16)
+instance Show RenderInstructions where
+  show (MoveCursor row col) = "moveCursor " ++ show row ++ " " ++ show col
+  show (DrawString st) = "drawString " ++ show st
+
+chunkPlacer topBlock leftBlock rows cols =
+  let topBlockOffset = -(topBlock `mod` 16)
       leftBlockOffset = -(leftBlock `mod` 16)
 
-      drawChunk Ungenerated{} = "UNGENERATED"
+      drawChunk Ungenerated{} = []
       drawChunk chunk =
         let chunkTopOffset  = north chunk - topBlock
             chunkLeftOffset = leftBlock - east chunk - 15
@@ -98,7 +102,8 @@ chunkPlacer topBlock leftBlock rows cols =
             dropRows = -(min 0 chunkTopOffset)
             dropCols = -(min 0 chunkLeftOffset)
 
-            startColumn = chunkLeftOffset + dropCols
+            -- each line starts at this column
+            column = chunkLeftOffset + dropCols
 
             -- crop a chunk to fit on the screen
             cropChunk chunk =
@@ -110,12 +115,12 @@ chunkPlacer topBlock leftBlock rows cols =
 
             -- Draw a single (line number, line) pair
             drawTerrainLine (row, line) =
-              ("@(col " ++ show startColumn ++ ", row " ++ show row ++ ")"
-               ++ concatMap blockAnsi line)
+              [MoveCursor row column,
+               DrawString $ concatMap blockAnsi line]
 
             cropped = cropChunk chunk
             zipped = zip [(chunkTopOffset + dropRows)..] cropped
-        in unlines (map drawTerrainLine zipped)
+        in concatMap drawTerrainLine zipped
   in drawChunk
 
 placeChunk' :: Int -> Int -> Int -> Int -> Chunk -> Update ()
