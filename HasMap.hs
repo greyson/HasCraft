@@ -187,15 +187,38 @@ splitNBS n bs
 chunkBlockType :: Chunk -> [BlockType]
 chunkBlockType = map (toEnum . fromIntegral) . B.unpack . terrain
 
+chunkTopLayer' :: Chunk -> [[BlockType]]
+chunkTopLayer' chunk =
+  reverse $ splitN 16 $ map columnTop $ splitNBS 128 $ B.reverse $ terrain chunk
+
 chunkTopLayer :: Chunk -> [[BlockType]]
 chunkTopLayer chunk =
-  map reverse $ splitN 16 $ map chunkTopLayer' $ splitNBS 128 $ terrain chunk
+  reverse $ splitN 16 tops
+  where
+    (_, _, tops) = B.foldr topLayerFoldr (0, Nothing, []) (terrain chunk)
 
 air = fromIntegral (fromEnum Air)
 
-chunkTopLayer' :: Terrain -> BlockType
-chunkTopLayer' bs =
-  toEnum $ fromIntegral $ B.head $ B.dropWhile (== air) $ B.reverse bs
+--topLayerFoldl = flip topLayerFoldr
+
+-- when we wrap to the end of a column, translate the collected block
+-- onto the beginning of the list
+topLayerFoldr block (128, Just bt, list) =
+  topLayerFoldr block (0, Nothing, (list ++ [toEnum (fromIntegral bt)]))
+-- If we already have the top block, skip any others
+topLayerFoldr _ (count, Just bt, list) =
+  (count +1, Just bt, list)
+-- Skip air as long as we still don't have the top
+topLayerFoldr block (count, Nothing, list)
+  | block == air = (count +1, Nothing, list)
+-- Any non-air block encountered before we've resolved the column
+-- becomes our top block
+  | otherwise    = (count +1, Just block, list)
+
+
+columnTop :: Terrain -> BlockType
+columnTop bs =
+  toEnum $ fromIntegral $ B.head $ B.dropWhile (== air) bs
 
 clearScreen rows cols = do
   let clearLine row = do
