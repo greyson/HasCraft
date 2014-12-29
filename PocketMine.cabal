@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 
 executable PocketMine
-  main-is:             Main.hs
+  main-is:             HasMap.hs
   ghc-options:
     -O2
     -prof
@@ -26,6 +26,8 @@ executable PocketMine
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.7 && <4.8, transformers >= 0.4 && < 0.5,
+                       transformers-base >= 0.4 && <0.5,
+                       exceptions >=0.6 && <0.7,
                        leveldb-haskell >= 0.6 && < 0.7, mtl >= 2.2 && < 2.3,
                        resourcet >= 1.1 && < 1.2,
                        utf8-string >= 0.3 && < 0.4,
@@ -34,6 +36,6 @@ executable PocketMine
                        binary >= 0.7 && < 0.8, containers >= 0.5 && < 0.6,
                        ansi-terminal >= 0.5 && < 0.6,
                        terminal-size >= 0.2 && < 0.3,
-                       ncurses >= 0.2 && < 0.3, c2hs >= 0.20 && < 0.21
+                       ncurses >= 0.2 && < 0.3
   -- hs-source-dirs:
   default-language:    Haskell2010

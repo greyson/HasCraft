@@ -115,37 +115,37 @@ chunkPlacer topBlock leftBlock rows cols =
   let topBlockOffset = -(topBlock `mod` 16)
       leftBlockOffset = -(leftBlock `mod` 16)
 
+      nsSpan = fromIntegral rows
+      ewSpan = fromIntegral cols
+
       drawChunk Ungenerated{} = []
       drawChunk chunk =
-        let nsSpan = fromIntegral rows
-            ewSpan = fromIntegral cols
-            chunkTopOffset  = north chunk - topBlock
+        let chunkTopOffset  = north chunk - topBlock
             chunkLeftOffset = leftBlock - east chunk - 15
 
-            dropRows = -(min 0 chunkTopOffset)
-            dropCols = -(min 0 chunkLeftOffset)
+            dropRows = fromIntegral $ -(min 0 chunkTopOffset)
+            dropCols = fromIntegral $ -(min 0 chunkLeftOffset)
 
             -- each line starts at this column
             column = chunkLeftOffset + dropCols
 
             -- crop a chunk to fit on the screen
-            cropChunk chunk =
-              let keepRows = min 16 (nsSpan - chunkTopOffset) - dropRows
-                  keepCols = min 16 (ewSpan - chunkLeftOffset) - dropCols
+            keepRows = fromIntegral $ min 16 (nsSpan - chunkTopOffset) - dropRows
+            keepCols = fromIntegral $ min 16 (ewSpan - chunkLeftOffset) - dropCols
 
-                  topLayer = chunkTopLayer chunk
+            topLayer = chunkTopLayer chunk
 
-                  sliceCols = take (fromIntegral keepCols) . drop (fromIntegral dropCols)
-                  sliceRows = take (fromIntegral keepRows) . drop (fromIntegral dropRows)
-              in sliceRows $ map sliceCols topLayer
+            sliceCols = take (fromIntegral keepCols) . drop (fromIntegral dropCols)
+            sliceRows = take (fromIntegral keepRows) . drop (fromIntegral dropRows)
+            cropped = sliceRows $ map sliceCols topLayer
+
+            zipped = zip [(chunkTopOffset + dropRows)..] cropped
 
             -- Draw a single (line number, line) pair
             drawTerrainLine (row, line) =
-              [MoveCursor row column,
-               DrawString $ concatMap blockAnsi line]
-
-            cropped = cropChunk chunk
-            zipped = zip [(chunkTopOffset + dropRows)..] cropped
+              [ MoveCursor row column
+              , DrawString $ concatMap blockAnsi line
+              ]
         in concatMap drawTerrainLine zipped
   in drawChunk
 
