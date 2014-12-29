@@ -45,14 +45,9 @@ data BlockType = Air | Stone | GrassBlock | Dirt | Cobblestone
                deriving (Show, Eq, Ord)
 
 instance Enum BlockType where
-  fromEnum e =
-    case e of
-      Unknown i -> i
-      otherwise -> fromJust $ M.lookup e enumMap
-  toEnum i =
-    case M.lookup i idMap of
-      Nothing -> Unknown i
-      Just el -> el
+  fromEnum (Unknown i) = i
+  fromEnum e = fromJust $ M.lookup e enumMap
+  toEnum i = maybe (Unknown i) id $ M.lookup i idMap
 
 enumMap = M.fromList blockIds
 idMap = M.fromList (map swap blockIds)
