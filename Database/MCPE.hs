@@ -1,10 +1,17 @@
-module Database.MCPE where
+module Database.MCPE
+       ( open
+       , loadChunk
+       , DB.DB
+
+       --, MonadResource(..), runResourceT
+       ) where
 
 import Prelude hiding (put)
 
 import Control.Applicative ( (<$>), (<*>) )
 import Control.Exception (bracket)
 import Control.Monad.Trans.Maybe (runMaybeT, MaybeT(..))
+import Control.Monad.Trans.Resource
 import Data.Binary (put, putWord8, getWord8, decode, encode, Binary(..) )
 import Data.Binary.Put (runPut, putWord32le, putByteString)
 import Data.Binary.Get (getWord32le, lookAheadM)
@@ -14,23 +21,38 @@ import Data.Int (Int64(..))
 import Data.NBT.MCPE (NBT(..), readNbt)
 import Data.Word (Word8(..), Word32(..))
 import Database.LevelDB (withIterator, defaultReadOptions,
-                         runResourceT,
                          Compression(..), getProperty, Options(..) )
 
 import qualified Database.LevelDB as DB
 import qualified Database.LevelDB.Streaming as S
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BL
+
+import Data.Minecraft.Chunk
 
 defaultOptions = DB.defaultOptions{ compression = Zlib }
 
 type Database = DB.DB
+
 open path = DB.open path defaultOptions
+
+loadChunk x z db = do
+  wholeTerrain <- dbGet (Key x z TerrainData) db
+  return $ case wholeTerrain of
+    Nothing -> Ungenerated { east = z * 16
+                           , north = x * 16
+                           }
+    Just terrain -> Chunk { east = z * 16
+                          , north = x * 16
+                          , terrain = (BL.toStrict $ BL.take (16*16*128) terrain)
+                          , entities = []
+                          }
 
 getNbt key db = do
   value <- dbGet key db
   return $ readNbt <$> value
 
-dbGet :: DB.MonadResource m => Key -> DB.DB -> m (Maybe ByteString)
+--dbGet :: DB.ResourceT m => Key -> DB.DB -> m (Maybe ByteString)
 dbGet key db = do
   let binkey = runPut $ put key
   value <- DB.get db defaultReadOptions (toStrict binkey)
@@ -41,7 +63,7 @@ getDbProperty path p = runResourceT $ do
   db <- open path
   getProperty db p
 
-data Key = Key Int Int ChunkType
+data Key = Key Integer Integer ChunkType
          | LocalPlayer
          deriving (Show, Eq)
 
