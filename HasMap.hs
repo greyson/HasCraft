@@ -123,15 +123,15 @@ chunkPlacer topBlock leftBlock rows cols =
         let chunkTopOffset  = north chunk - topBlock
             chunkLeftOffset = leftBlock - east chunk - 15
 
-            dropRows = fromIntegral $ -(min 0 chunkTopOffset)
-            dropCols = fromIntegral $ -(min 0 chunkLeftOffset)
+            dropRows = -(min 0 chunkTopOffset)
+            dropCols = -(min 0 chunkLeftOffset)
 
             -- each line starts at this column
             column = chunkLeftOffset + dropCols
 
             -- crop a chunk to fit on the screen
-            keepRows = fromIntegral $ min 16 (nsSpan - chunkTopOffset) - dropRows
-            keepCols = fromIntegral $ min 16 (ewSpan - chunkLeftOffset) - dropCols
+            keepRows = min 16 (nsSpan - chunkTopOffset) - dropRows
+            keepCols = min 16 (ewSpan - chunkLeftOffset) - dropCols
 
             topLayer = chunkTopLayer chunk
 
@@ -177,14 +177,25 @@ splitN n list
     let (line, rest) = splitAt n list
     in line:splitN n rest
 
+splitNBS :: Int -> Terrain -> [Terrain]
+splitNBS n bs
+  | B.null bs = []
+  | otherwise =
+      let (line, rest) = B.splitAt n bs
+      in line:splitNBS n rest
+
 chunkBlockType :: Chunk -> [BlockType]
 chunkBlockType = map (toEnum . fromIntegral) . B.unpack . terrain
 
 chunkTopLayer :: Chunk -> [[BlockType]]
 chunkTopLayer chunk =
-  let columns = splitN 128 (chunkBlockType chunk)
-      topBlocks = map (head . dropWhile (== Air) . reverse) columns
-   in map reverse $ splitN 16 topBlocks
+  map reverse $ splitN 16 $ map chunkTopLayer' $ splitNBS 128 $ terrain chunk
+
+air = fromIntegral (fromEnum Air)
+
+chunkTopLayer' :: Terrain -> BlockType
+chunkTopLayer' bs =
+  toEnum $ fromIntegral $ B.head $ B.dropWhile (== air) $ B.reverse bs
 
 clearScreen rows cols = do
   let clearLine row = do
