@@ -91,36 +91,19 @@ instance MonadBase IO Curses where liftBase = liftIO
 
 -- Now onto the code
 
+emptyLayer = replicate 16 (replicate 16 Air)
+
 {-| Build a function which crops and places any chunk into the right
     part of the screen given by `rows` and `cols`
 -}
 
-data RenderInstruction = MoveCursor Integer Integer
-                       | DrawString String
-                       | SetColor ColorID
-
-instance Show RenderInstruction where
-  show (MoveCursor row col) = "moveCursor " ++ show row ++ " " ++ show col
-  show (DrawString st) = "drawString " ++ show st
-  show (SetColor cid) = "setColor " ++ show cid
-
-renderToUpdate (MoveCursor row col) = moveCursor row col
-renderToUpdate (DrawString st) = drawString st
-renderToUpdate (SetColor cid) = setColor cid
-
-emptyLayer = replicate 16 (replicate 16 Air)
-
--- The ncurses package has a bad habit of using Integer instead of Int
--- for rows/columns I will use Int for those when passing them around,
--- but translate to Integer where it makes sense, or where I
--- transition to the ncurses library
-chunkPlacer :: Integer -> Integer -> Int -> Int -> Chunk -> Update [()]
+chunkPlacer :: Integer -> Integer -> Integer -> Integer -> Chunk -> Update [()]
 chunkPlacer topBlock leftBlock rows cols =
   let topBlockOffset = -(topBlock `mod` 16)
       leftBlockOffset = -(leftBlock `mod` 16)
 
-      nsSpan = fromIntegral rows
-      ewSpan = fromIntegral cols
+      nsSpan = rows
+      ewSpan = cols
 
       drawChunk chunk =
         let chunkTopOffset  = north chunk - topBlock
@@ -188,9 +171,6 @@ splitNBS n bs
       let (line, rest) = B.splitAt n bs
       in line:splitNBS n rest
 
-chunkBlockType :: Chunk -> [BlockType]
-chunkBlockType = map (toEnum . fromIntegral) . B.unpack . terrain
-
 chunkTopLayer :: Chunk -> [[BlockType]]
 chunkTopLayer chunk =
   map reverse $ splitN 16 $ map chunkTopLayer' $ splitNBS 128 $ terrain chunk
@@ -201,17 +181,7 @@ chunkTopLayer' :: Terrain -> BlockType
 chunkTopLayer' bs =
   toEnum $ fromIntegral $ B.head $ B.dropWhile (== air) $ B.reverse bs
 
-clearScreen rows cols = do
-  let clearLine row = do
-        moveCursor row 0
-        drawString $ replicate (fromIntegral cols - (if row == (rows-1) then 1 else 0)) ' '
-  setColor defaultColorID
-  mapM clearLine (take (fromIntegral rows) [0..])
-  moveCursor 0 0
-
 -- Borrowed from original escape-code implementation
-
-
 
 colorizer :: Curses (BlockType -> ColorID)
 colorizer = do
