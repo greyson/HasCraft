@@ -156,7 +156,7 @@ visibleChunks topBlock leftBlock rows cols =
       rightBlock = leftBlock - (ewBlocks -1)
 
       topChunk = topBlock `div` 16
-      rightChunk = (rightBlock + 15) `div` 16
+      rightChunk = (rightBlock) `div` 16
       bottomChunk = bottomBlock `div` 16
       leftChunk = leftBlock `div` 16
 
