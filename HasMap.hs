@@ -68,8 +68,7 @@ renderScreen topBlock leftBlock db = do
   -- chunk related
   w <- lift $ defaultWindow
   chunks <- sequence (map (loadChunkCoord db) chunksCoords)
-  let renderInstructions = concat $ map placeChunk chunks
-  lift $ updateWindow w $ mapM renderToUpdate $ renderInstructions
+  lift $ updateWindow w $ mapM placeChunk chunks
   lift $ render
 
 -- The following combines the resource monad needed by LevelDB and the
@@ -98,19 +97,24 @@ instance MonadBase IO Curses where liftBase = liftIO
 
 data RenderInstruction = MoveCursor Integer Integer
                        | DrawString String
+                       | SetColor ColorID
 
 instance Show RenderInstruction where
   show (MoveCursor row col) = "moveCursor " ++ show row ++ " " ++ show col
   show (DrawString st) = "drawString " ++ show st
+  show (SetColor cid) = "setColor " ++ show cid
 
 renderToUpdate (MoveCursor row col) = moveCursor row col
 renderToUpdate (DrawString st) = drawString st
+renderToUpdate (SetColor cid) = setColor cid
+
+emptyLayer = replicate 16 (replicate 16 Air)
 
 -- The ncurses package has a bad habit of using Integer instead of Int
 -- for rows/columns I will use Int for those when passing them around,
 -- but translate to Integer where it makes sense, or where I
 -- transition to the ncurses library
-chunkPlacer :: Integer -> Integer -> Int -> Int -> Chunk -> [RenderInstruction]
+chunkPlacer :: Integer -> Integer -> Int -> Int -> Chunk -> Update [()]
 chunkPlacer topBlock leftBlock rows cols =
   let topBlockOffset = -(topBlock `mod` 16)
       leftBlockOffset = -(leftBlock `mod` 16)
@@ -118,7 +122,6 @@ chunkPlacer topBlock leftBlock rows cols =
       nsSpan = fromIntegral rows
       ewSpan = fromIntegral cols
 
-      drawChunk Ungenerated{} = []
       drawChunk chunk =
         let chunkTopOffset  = north chunk - topBlock
             chunkLeftOffset = leftBlock - east chunk - 15
@@ -133,7 +136,9 @@ chunkPlacer topBlock leftBlock rows cols =
             keepRows = min 16 (nsSpan - chunkTopOffset) - dropRows
             keepCols = min 16 (ewSpan - chunkLeftOffset) - dropCols
 
-            topLayer = chunkTopLayer chunk
+            topLayer = case chunk of
+                            Ungenerated{} -> emptyLayer
+                            other -> chunkTopLayer chunk
 
             sliceCols = take (fromIntegral keepCols) . drop (fromIntegral dropCols)
             sliceRows = take (fromIntegral keepRows) . drop (fromIntegral dropRows)
@@ -142,11 +147,10 @@ chunkPlacer topBlock leftBlock rows cols =
             zipped = zip [(chunkTopOffset + dropRows)..] cropped
 
             -- Draw a single (line number, line) pair
-            drawTerrainLine (row, line) =
-              [ MoveCursor row column
-              , DrawString $ concatMap blockAnsi line
-              ]
-        in concatMap drawTerrainLine zipped
+            drawTerrainLine (row, line) = do
+              moveCursor row column
+              drawString $ map blockAnsi line
+        in sequence $ map drawTerrainLine zipped
   in drawChunk
 
 visibleChunks topBlock leftBlock rows cols =
@@ -207,72 +211,86 @@ clearScreen rows cols = do
 
 -- Borrowed from original escape-code implementation
 
+
+
+colorizer :: Curses (BlockType -> ColorID)
+colorizer = do
+  let none = defaultColorID
+      createColor (id, (fore, back)) = newColorID fore back id
+  blueOnBlue <- newColorID ColorCyan ColorBlue 1
+
+  let colorizer' Water = blueOnBlue
+      colorizer' StationaryWater = blueOnBlue
+      colorizer' _ = none
+  return colorizer'
+
+
 blockAnsi bt =
   case M.lookup bt ansiBlock of
-    Nothing -> "?"
+    Nothing -> '?'
     Just s -> s
 
 ansiBlock = M.fromList
-   [(Air,                " "), (Stone,             "#"),
-    (GrassBlock,         "."), (Dirt,              ","),
-    (Cobblestone,        "%"), (OakPlank,          "="),
-    (Sapling,            "!"), (Bedrock,           "&"),
-    (Water,              "~"), (StationaryWater,   "~"),
-    (Lava,               "x"), (StationaryLava ,   "X"),
-    (Sand,               "o"), (Gravel,            ":"),
-    (GoldOre,            "$"), (IronOre,           "@"),
-    (CoalOre,            "b"), (Wood,              "|"),
-    (Leaves,             "^"), (Sponge,            "¶"),
-    (Glass,              "O"), (LapisOre,          "B"),
-    (LapisBlock,         "/"), (Sandstone,         "/"),
-    (Bed,                "/"), (PoweredRail,       "/"),
-    (Cobweb,             "/"), (TallGrass,         "/"),
-    (DeadBush,           "/"), (Wool,              "/"),
-    (Dandelion,          "/"), (Poppy,             "/"),
-    (BrownMushroom,      "/"), (RedMushroom,       "/"),
-    (GoldBlock,          "/"), (IronBlock,         "/"),
-    (DoubleStoneSlab,    "/"), (StoneSlab,         "/"),
-    (BrickBlock,         "/"), (TNT,               "/"),
-    (Bookshelf,          "/"), (MossStone,         "/"),
-    (Obsidian,           "/"), (Torch,             "/"),
-    (Fire,               "/"), (MonsterSpawner,    "/"),
-    (OakStairs,          "/"), (Chest,             "/"),
-    (DiamondOre,         "/"), (DiamondBlock,      "/"),
-    (CraftingTable,      "/"), (Seeds,             "/"),
-    (Farmland,           "/"), (Furnace,           "/"),
-    (BurningFurnace,     "/"), (SignPost,          "/"),
-    (OakDoor,            "/"), (Ladder,            "/"),
-    (Rail,               "/"), (CobblestoneStairs, "/"),
-    (WallSign,           "/"), (IronDoor,          "/"),
-    (RedstoneOre,        "/"), (GlowingRedstoneOre,"/"),
-    (SnowCover,          "/"), (Ice,               "/"),
-    (Snow,               "/"), (Cactus,            "/"),
-    (Clay,               "/"), (SugarCane,         "|"),
-    (Fence,              "/"), (Pumpkin,           "/"),
-    (Netherrack,         "/"), (Glowstone,         "/"),
-    (JackOLantern,       "/"), (CakeBlock,         "/"),
-    (InvisibleBedrock,   "/"), (Trapdoor,          "/"),
-    (StoneBrick,         "/"), (HugeBrownMushroom, "/"),
-    (HugeRedMushroom,    "/"), (IronBars,          "/"),
-    (GlassPane,          "/"), (Melon,             "/"),
-    (PumpkinStem,        "/"), (MelonStem,         "/"),
-    (Vines,              "/"), (FenceGate,         "/"),
-    (BrickStairs,        "/"), (StoneBrickStairs,  "/"),
-    (Mycellium,          "/"), (LilyPad,           "/"),
-    (NetherBrick,        "/"), (NetherBrickStairs, "/"),
-    (EndPortalFrame,     "/"), (EndStone,          "/"),
-    (Cocoa,              "/"), (SandstoneStairs,   "/"),
-    (EmeraldOre,         "/"), (EmeraldBlock,      "/"),
-    (SpruceStairs,       "/"), (BirchStairs,       "/"),
-    (JungleStairs,       "/"), (CobblestoneWall,   "/"),
-    (Carrots,            "/"), (Potato,            "/"),
-    (QuartzBlock,        "/"), (QuartzStairs,      "/"),
-    (OakDoubleSlab,      "/"), (OakSlab,           "/"),
-    (StainedClay,        "/"), (AcaciaStairs,      "/"),
-    (DarkOakStairs,      "/"), (HayBlock,          "/"),
-    (Carpet,             "/"), (HardClay,          "/"),
-    (CoalBlock,          "/"), (PackedIce,         "/"),
-    (Podzol,             "/"), (Beetroot,          "/"),
-    (StoneCutter,        "/"), (GlowingObsidian,   "/"),
-    (NetherReactor,      "/"), (UpdateGameBE,      "/"),
-    (UpdateGameLE,       "/"), (NameBlock,         "/")]
+   [(Air,                ' '), (Stone,             '#'),
+    (GrassBlock,         '.'), (Dirt,              ','),
+    (Cobblestone,        '%'), (OakPlank,          '='),
+    (Sapling,            '!'), (Bedrock,           '&'),
+    (Water,              '~'), (StationaryWater,   '~'),
+    (Lava,               'x'), (StationaryLava ,   'X'),
+    (Sand,               'o'), (Gravel,            ':'),
+    (GoldOre,            '$'), (IronOre,           '@'),
+    (CoalOre,            'b'), (Wood,              '|'),
+    (Leaves,             '^'), (Sponge,            '¶'),
+    (Glass,              'O'), (LapisOre,          'B'),
+    (LapisBlock,         '/'), (Sandstone,         '/'),
+    (Bed,                '/'), (PoweredRail,       '/'),
+    (Cobweb,             '/'), (TallGrass,         '/'),
+    (DeadBush,           '/'), (Wool,              '/'),
+    (Dandelion,          '/'), (Poppy,             '/'),
+    (BrownMushroom,      '/'), (RedMushroom,       '/'),
+    (GoldBlock,          '/'), (IronBlock,         '/'),
+    (DoubleStoneSlab,    '/'), (StoneSlab,         '/'),
+    (BrickBlock,         '/'), (TNT,               '/'),
+    (Bookshelf,          '/'), (MossStone,         '/'),
+    (Obsidian,           '/'), (Torch,             '/'),
+    (Fire,               '/'), (MonsterSpawner,    '/'),
+    (OakStairs,          '/'), (Chest,             '/'),
+    (DiamondOre,         '/'), (DiamondBlock,      '/'),
+    (CraftingTable,      '/'), (Seeds,             '/'),
+    (Farmland,           '/'), (Furnace,           '/'),
+    (BurningFurnace,     '/'), (SignPost,          '/'),
+    (OakDoor,            '/'), (Ladder,            '/'),
+    (Rail,               '/'), (CobblestoneStairs, '/'),
+    (WallSign,           '/'), (IronDoor,          '/'),
+    (RedstoneOre,        '/'), (GlowingRedstoneOre,'/'),
+    (SnowCover,          '/'), (Ice,               '/'),
+    (Snow,               '/'), (Cactus,            '/'),
+    (Clay,               '/'), (SugarCane,         '|'),
+    (Fence,              '/'), (Pumpkin,           '/'),
+    (Netherrack,         '/'), (Glowstone,         '/'),
+    (JackOLantern,       '/'), (CakeBlock,         '/'),
+    (InvisibleBedrock,   '/'), (Trapdoor,          '/'),
+    (StoneBrick,         '/'), (HugeBrownMushroom, '/'),
+    (HugeRedMushroom,    '/'), (IronBars,          '/'),
+    (GlassPane,          '/'), (Melon,             '/'),
+    (PumpkinStem,        '/'), (MelonStem,         '/'),
+    (Vines,              '/'), (FenceGate,         '/'),
+    (BrickStairs,        '/'), (StoneBrickStairs,  '/'),
+    (Mycellium,          '/'), (LilyPad,           '/'),
+    (NetherBrick,        '/'), (NetherBrickStairs, '/'),
+    (EndPortalFrame,     '/'), (EndStone,          '/'),
+    (Cocoa,              '/'), (SandstoneStairs,   '/'),
+    (EmeraldOre,         '/'), (EmeraldBlock,      '/'),
+    (SpruceStairs,       '/'), (BirchStairs,       '/'),
+    (JungleStairs,       '/'), (CobblestoneWall,   '/'),
+    (Carrots,            '/'), (Potato,            '/'),
+    (QuartzBlock,        '/'), (QuartzStairs,      '/'),
+    (OakDoubleSlab,      '/'), (OakSlab,           '/'),
+    (StainedClay,        '/'), (AcaciaStairs,      '/'),
+    (DarkOakStairs,      '/'), (HayBlock,          '/'),
+    (Carpet,             '/'), (HardClay,          '/'),
+    (CoalBlock,          '/'), (PackedIce,         '/'),
+    (Podzol,             '/'), (Beetroot,          '/'),
+    (StoneCutter,        '/'), (GlowingObsidian,   '/'),
+    (NetherReactor,      '/'), (UpdateGameBE,      '/'),
+    (UpdateGameLE,       '/'), (NameBlock,         '/')]
