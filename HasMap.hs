@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 import Control.Applicative ( (<$>) )
 import Control.Exception (catch)
-import Control.Monad (liftM, ap)
+import Control.Monad (liftM, ap, void)
 import Control.Monad.Base
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -58,9 +58,10 @@ renderScreen topBlock leftBlock db = do
   -- window related
   (allRows, cols) <- lift $ screenSize
   let rows = allRows -1
+  painter <- lift $ makePainter
 
   -- chunk preparation
-  let placeChunk = chunkPlacer topBlock leftBlock (fromIntegral rows) (fromIntegral cols)
+  let placeChunk = chunkPlacer painter topBlock leftBlock rows cols
       chunksCoords = visibleChunks topBlock leftBlock rows cols
 
   let loadChunkCoord db (x, z) = loadChunk x z db
@@ -97,8 +98,8 @@ emptyLayer = replicate 16 (replicate 16 Air)
     part of the screen given by `rows` and `cols`
 -}
 
-chunkPlacer :: Integer -> Integer -> Integer -> Integer -> Chunk -> Update [()]
-chunkPlacer topBlock leftBlock rows cols =
+chunkPlacer :: Painter -> Integer -> Integer -> Integer -> Integer -> Chunk -> Update [()]
+chunkPlacer painter topBlock leftBlock rows cols =
   let topBlockOffset = -(topBlock `mod` 16)
       leftBlockOffset = -(leftBlock `mod` 16)
 
@@ -129,10 +130,14 @@ chunkPlacer topBlock leftBlock rows cols =
 
             zipped = zip [(chunkTopOffset + dropRows)..] cropped
 
+            drawBlock block = do
+              painter block
+              drawString [blockAnsi block]
+
             -- Draw a single (line number, line) pair
             drawTerrainLine (row, line) = do
               moveCursor row column
-              drawString $ map blockAnsi line
+              void $ mapM drawBlock line
         in sequence $ map drawTerrainLine zipped
   in drawChunk
 
@@ -183,31 +188,47 @@ chunkTopLayer' bs =
 
 -- Borrowed from original escape-code implementation
 
-colorizer :: Curses (BlockType -> ColorID)
-colorizer = do
-  let none = defaultColorID
-      createColor (id, (fore, back)) = newColorID fore back id
-  blueOnBlue <- newColorID ColorCyan ColorBlue 1
+type Painter = BlockType -> Update ()
 
-  let colorizer' Water = blueOnBlue
-      colorizer' StationaryWater = blueOnBlue
-      colorizer' _ = none
-  return colorizer'
+makePainter :: Curses (BlockType -> Update ())
+makePainter = do
+  let colorEntries (id, ((f, b), blocks)) = do
+        cid <- newColorID f b id
+        return $ map (\(bt, attr) -> (bt, (cid, attr))) blocks
+  table <- (M.fromList . concat) <$> (mapM colorEntries (zip [1..] colors))
 
+  let applyColor bt = do
+        let (colorid, atr) = maybe (defaultColorID, []) id $ M.lookup bt table
+        setColor colorid
+        setAttributes atr
+  return applyColor
+
+-- ((foreground, background), [(blocktype, [attributes])]
+colors =
+  [ ((ColorBlack, ColorWhite),   [(Stone, [])
+                                 ,(Gravel, [])
+                                 ,(Cobblestone, []) ])
+  , ((ColorGreen, ColorGreen),   [(GrassBlock, [AttributeBold, AttributeReverse])
+                                 ,(Leaves, [AttributeDim, AttributeReverse]) ])
+  , ((ColorBlue, ColorBlue),     [(Water, [AttributeBold])
+                                 ,(StationaryWater, []) ])
+  , ((ColorBlack, ColorYellow),  [(Dirt, [AttributeBold]) ])
+  , ((ColorYellow, ColorYellow), [(Sand, [AttributeReverse, AttributeBold]) ])
+  , ((ColorYellow, ColorRed),    [(Lava, [])
+                                 ,(StationaryLava, []) ])
+  ]
 
 blockAnsi bt =
-  case M.lookup bt ansiBlock of
-    Nothing -> '?'
-    Just s -> s
+  maybe '?' id $ M.lookup bt ansiBlock
 
 ansiBlock = M.fromList
    [(Air,                ' '), (Stone,             '#'),
-    (GrassBlock,         '.'), (Dirt,              ','),
+    (GrassBlock,         ' '), (Dirt,              ' '),
     (Cobblestone,        '%'), (OakPlank,          '='),
     (Sapling,            '!'), (Bedrock,           '&'),
-    (Water,              '~'), (StationaryWater,   '~'),
-    (Lava,               'x'), (StationaryLava ,   'X'),
-    (Sand,               'o'), (Gravel,            ':'),
+    (Water,              '~'), (StationaryWater,   ' '),
+    (Lava,               '~'), (StationaryLava ,   ' '),
+    (Sand,               ' '), (Gravel,            ':'),
     (GoldOre,            '$'), (IronOre,           '@'),
     (CoalOre,            'b'), (Wood,              '|'),
     (Leaves,             '^'), (Sponge,            '¶'),
