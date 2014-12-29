@@ -21,29 +21,56 @@ import Database.MCPE
 
 path = "My World/db"
 
-testLoadChunk :: Integer -> Integer -> RecursesIO Chunk
-testLoadChunk x z = do
-  open path >>= loadChunk x z
+data AppState = AppState { worldX :: Integer
+                         , worldZ :: Integer
+                         , database :: DB
+                         }
 
-testRenderChunk topBlock leftBlock chunkX chunkZ  = do
+main = runRecurses $ do
+  [x, z] <- liftIO getArgs
+  db <- open path
+
+  mainLoop AppState { worldX = read x
+                    , worldZ = read z
+                    , database = db
+                    }
+
+mainLoop (state@AppState { worldX = x, worldZ = z, database = db }) = do
+  renderScreen x z db
+  w <- lift $ defaultWindow
+  ev <- lift $ getEvent w Nothing
+  case ev of
+   Just (EventCharacter 'q') -> return ()
+   Just ev -> mainLoop (handleEvent state ev)
+   Nothing -> mainLoop state
+
+handleEvent state (EventSpecialKey KeyDownArrow) =
+  state { worldX = worldX state + 1 }
+handleEvent state (EventSpecialKey KeyUpArrow) =
+  state { worldX = worldX state - 1 }
+handleEvent state (EventSpecialKey KeyRightArrow) =
+  state { worldZ = worldZ state - 1 }
+handleEvent state (EventSpecialKey KeyLeftArrow) =
+  state { worldZ = worldZ state + 1 }
+handleEvent state _ = state
+
+renderScreen topBlock leftBlock db = do
   -- window related
-  (rows, cols) <- lift $ screenSize
-  let placeChunk = chunkPlacer topBlock leftBlock (fromIntegral (rows-1)) (fromIntegral cols)
+  (allRows, cols) <- lift $ screenSize
+  let rows = allRows -1
+
+  -- chunk preparation
+  let placeChunk = chunkPlacer topBlock leftBlock (fromIntegral rows) (fromIntegral cols)
+      chunksCoords = visibleChunks topBlock leftBlock rows cols
+
+  let loadChunkCoord db (x, z) = loadChunk x z db
 
   -- chunk related
   w <- lift $ defaultWindow
-  chunk <- open path >>= loadChunk chunkX chunkZ
-  lift $ updateWindow w (clearScreen rows cols)
-  lift $ updateWindow w $ mapM renderToUpdate $ placeChunk chunk
+  chunks <- sequence (map (loadChunkCoord db) chunksCoords)
+  let renderInstructions = concat $ map placeChunk chunks
+  lift $ updateWindow w $ mapM renderToUpdate $ renderInstructions
   lift $ render
-
-clearScreen rows cols = do
-  let clearLine row = do
-        moveCursor row 0
-        drawString $ replicate (fromIntegral cols - (if row == (rows-1) then 1 else 0)) ' '
-  setColor defaultColorID
-  mapM clearLine (take (fromIntegral rows) [0..])
-  moveCursor 0 0
 
 -- The following combines the resource monad needed by LevelDB and the
 -- Curses monad.
@@ -69,10 +96,10 @@ instance MonadBase IO Curses where liftBase = liftIO
     part of the screen given by `rows` and `cols`
 -}
 
-data RenderInstructions = MoveCursor Integer Integer
-                        | DrawString String
+data RenderInstruction = MoveCursor Integer Integer
+                       | DrawString String
 
-instance Show RenderInstructions where
+instance Show RenderInstruction where
   show (MoveCursor row col) = "moveCursor " ++ show row ++ " " ++ show col
   show (DrawString st) = "drawString " ++ show st
 
@@ -83,7 +110,7 @@ renderToUpdate (DrawString st) = drawString st
 -- for rows/columns I will use Int for those when passing them around,
 -- but translate to Integer where it makes sense, or where I
 -- transition to the ncurses library
-chunkPlacer :: Integer -> Integer -> Int -> Int -> Chunk -> [RenderInstructions]
+chunkPlacer :: Integer -> Integer -> Int -> Int -> Chunk -> [RenderInstruction]
 chunkPlacer topBlock leftBlock rows cols =
   let topBlockOffset = -(topBlock `mod` 16)
       leftBlockOffset = -(leftBlock `mod` 16)
@@ -122,6 +149,22 @@ chunkPlacer topBlock leftBlock rows cols =
         in concatMap drawTerrainLine zipped
   in drawChunk
 
+visibleChunks topBlock leftBlock rows cols =
+  let ewBlocks = fromIntegral cols
+      nsBlocks = fromIntegral rows
+      bottomBlock = topBlock + (nsBlocks -1)
+      rightBlock = leftBlock - (ewBlocks -1)
+
+      topChunk = topBlock `div` 16
+      rightChunk = (rightBlock + 15) `div` 16
+      bottomChunk = bottomBlock `div` 16
+      leftChunk = leftBlock `div` 16
+
+      nsChunks = [topChunk..bottomChunk]
+      ewChunks = [rightChunk..leftChunk]
+
+  in [(x,z) | x <- nsChunks, z <- ewChunks]
+
 -- Utility functions
 
 slice sDrop sKeep lol =
@@ -142,6 +185,14 @@ chunkTopLayer chunk =
   let columns = splitN 128 (chunkBlockType chunk)
       topBlocks = map (head . dropWhile (== Air) . reverse) columns
    in map reverse $ splitN 16 topBlocks
+
+clearScreen rows cols = do
+  let clearLine row = do
+        moveCursor row 0
+        drawString $ replicate (fromIntegral cols - (if row == (rows-1) then 1 else 0)) ' '
+  setColor defaultColorID
+  mapM clearLine (take (fromIntegral rows) [0..])
+  moveCursor 0 0
 
 -- Borrowed from original escape-code implementation
 
