@@ -40,7 +40,7 @@ data BlockType = Air | Stone | GrassBlock | Dirt | Cobblestone
                | Potato | QuartzBlock | QuartzStairs | OakDoubleSlab | OakSlab
                | StainedClay | AcaciaStairs
                | DarkOakStairs | HayBlock | Carpet | HardClay | CoalBlock
-               | PackedIce | Podzol | Beetroot | StoneCutter | GlowingObsidian
+               | PackedIce | LargeFern | Podzol | Beetroot | StoneCutter | GlowingObsidian
                | NetherReactor | UpdateGameBE | UpdateGameLE | NameBlock | Unknown Int
                deriving (Show, Eq, Ord)
 
@@ -170,6 +170,7 @@ blockIds = [(Air,                0x00),
             (HardClay,           0xac),
             (CoalBlock,          0xad),
             (PackedIce,          0xae),
+            (LargeFern,          0xaf),
             (Podzol,             0xf3),
             (Beetroot,           0xf4),
             (StoneCutter,        0xf5),
