@@ -104,7 +104,7 @@ chunkPlacer painter topBlock leftBlock rows cols =
       leftBlockOffset = -(leftBlock `mod` 16)
 
       nsSpan = rows
-      ewSpan = cols
+      ewSpan = cols `div` 2
 
       drawChunk chunk =
         let chunkTopOffset  = north chunk - topBlock
@@ -114,7 +114,7 @@ chunkPlacer painter topBlock leftBlock rows cols =
             dropCols = -(min 0 chunkLeftOffset)
 
             -- each line starts at this column
-            column = chunkLeftOffset + dropCols
+            column = (chunkLeftOffset + dropCols) * 2
 
             -- crop a chunk to fit on the screen
             keepRows = min 16 (nsSpan - chunkTopOffset) - dropRows
@@ -132,7 +132,6 @@ chunkPlacer painter topBlock leftBlock rows cols =
 
             drawBlock block = do
               painter block
-              drawString [blockAnsi block]
 
             -- Draw a single (line number, line) pair
             drawTerrainLine (row, line) = do
@@ -142,13 +141,13 @@ chunkPlacer painter topBlock leftBlock rows cols =
   in drawChunk
 
 visibleChunks topBlock leftBlock rows cols =
-  let ewBlocks = fromIntegral cols
+  let ewBlocks = fromIntegral cols `div` 2
       nsBlocks = fromIntegral rows
       bottomBlock = topBlock + (nsBlocks -1)
       rightBlock = leftBlock - (ewBlocks -1)
 
       topChunk = topBlock `div` 16
-      rightChunk = (rightBlock) `div` 16
+      rightChunk = rightBlock `div` 16
       bottomChunk = bottomBlock `div` 16
       leftChunk = leftBlock `div` 16
 
@@ -194,28 +193,32 @@ makePainter :: Curses (BlockType -> Update ())
 makePainter = do
   let colorEntries (id, ((f, b), blocks)) = do
         cid <- newColorID f b id
-        return $ map (\(bt, attr) -> (bt, (cid, attr))) blocks
+        return $ map (\(bt, c, attr) -> (bt, (cid, c, attr))) blocks
   table <- (M.fromList . concat) <$> (mapM colorEntries (zip [1..] colors))
 
-  let applyColor bt = do
-        let (colorid, atr) = maybe (defaultColorID, []) id $ M.lookup bt table
+  let applyColor (Unknown x) = applyColor NameBlock
+      applyColor bt = do
+        let (colorid, c, atr) = maybe (defaultColorID, '?', []) id $ M.lookup bt table
         setColor colorid
         setAttributes atr
+        drawString [c, c]
   return applyColor
 
 -- ((foreground, background), [(blocktype, [attributes])]
 colors =
-  [ ((ColorBlack, ColorWhite),   [(Stone, [])
-                                 ,(Gravel, [])
-                                 ,(Cobblestone, []) ])
-  , ((ColorGreen, ColorGreen),   [(GrassBlock, [AttributeBold, AttributeReverse])
-                                 ,(Leaves, [AttributeDim, AttributeReverse]) ])
-  , ((ColorBlue, ColorBlue),     [(Water, [AttributeBold])
-                                 ,(StationaryWater, []) ])
-  , ((ColorBlack, ColorYellow),  [(Dirt, [AttributeBold]) ])
-  , ((ColorYellow, ColorYellow), [(Sand, [AttributeReverse, AttributeBold]) ])
-  , ((ColorYellow, ColorRed),    [(Lava, [])
-                                 ,(StationaryLava, []) ])
+  [ ((ColorYellow, ColorRed),    [(NameBlock, '?', [AttributeBold]) ])
+  , ((ColorBlack, ColorBlack),   [(Air, ' ', []) ])
+  , ((ColorBlack, ColorWhite),   [(Stone, ' ', [])
+                                 ,(Gravel, ':', [])
+                                 ,(Cobblestone, '%', []) ])
+  , ((ColorGreen, ColorGreen),   [(GrassBlock, ' ', [AttributeBold, AttributeReverse])
+                                 ,(Leaves, '^', [AttributeDim, AttributeReverse]) ])
+  , ((ColorBlue, ColorBlue),     [(Water, '~', [AttributeBold])
+                                 ,(StationaryWater, ' ', []) ])
+  , ((ColorBlack, ColorYellow),  [(Dirt, ' ', [AttributeBold]) ])
+  , ((ColorYellow, ColorYellow), [(Sand, ' ', [AttributeReverse, AttributeBold]) ])
+  , ((ColorYellow, ColorRed),    [(Lava, '~', [])
+                                 ,(StationaryLava, ' ', []) ])
   ]
 
 blockAnsi bt =
