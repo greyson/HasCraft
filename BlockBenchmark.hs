@@ -13,7 +13,7 @@ isUnknown (Unknown _) = True
 isUnknown _ = False
 
 main = defaultMain [
-  bgroup "decode" [ bench "10"  $ nf decodingN 10
-                  , bench "all" $ nf decodingN 65535
+  bgroup "decode" [ bench "init"  $ nf (toEnum::Int->BlockType) 255
+                  , bench "cycle" $ nf decodingN 65535
                   ]
   ]
