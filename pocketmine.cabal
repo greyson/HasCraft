@@ -50,5 +50,6 @@ benchmark BlockBenchmark
   main-is:          BlockBenchmark.hs
   type:             exitcode-stdio-1.0
   build-depends:    base, containers, vector,
-                    criterion ==1.0.*
+                    criterion ==1.0.*,
+                    deepseq ==1.3.*
   default-language: Haskell2010
