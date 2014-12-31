@@ -7,7 +7,7 @@ import Data.Minecraft.Block
 instance NFData BlockType
 
 decodingN :: Int -> [BlockType]
-decodingN i = map toEnum [0..i]
+decodingN i = take i $ map toEnum (cycle [0..255])
 
 isUnknown (Unknown _) = True
 isUnknown _ = False
