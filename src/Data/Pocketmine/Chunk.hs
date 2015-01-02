@@ -1,4 +1,4 @@
-module Data.Minecraft.Chunk where
+module Data.Pocketmine.Chunk where
 
 import Control.Applicative ( (<$>) )
 import Control.Monad.Trans (liftIO)
@@ -6,8 +6,8 @@ import Control.Monad.Trans.Maybe (runMaybeT)
 import Data.ByteString (ByteString, index)
 import Data.Maybe (fromJust)
 
-import Data.Minecraft.Entity
-import Data.Minecraft.Block
+import Data.Pocketmine.Entity
+import Data.Pocketmine.Block
 
 import qualified Data.ByteString.Lazy as BL
 

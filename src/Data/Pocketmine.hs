@@ -1,10 +1,10 @@
-module Data.Minecraft where
+module Data.Pocketmine where
 
 import Data.Text
 
-import Data.Minecraft.Common
-import Data.Minecraft.Entity
-import Data.Minecraft.Chunk
+import Data.Pocketmine.Common
+import Data.Pocketmine.Entity
+import Data.Pocketmine.Chunk
 
 data GameType = Survival | Creative
               deriving (Show, Enum, Eq)

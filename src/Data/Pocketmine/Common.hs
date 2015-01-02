@@ -1,4 +1,4 @@
-module Data.Minecraft.Common where
+module Data.Pocketmine.Common where
 
 -- 20 ticks = 1 second
 type Ticks = Integer

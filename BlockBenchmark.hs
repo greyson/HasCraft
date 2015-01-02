@@ -2,7 +2,7 @@ module Main where
 
 import Control.DeepSeq (NFData(..))
 import Criterion.Main
-import Data.Minecraft.Block
+import Data.Pocketmine.Block
 
 instance NFData BlockType
 

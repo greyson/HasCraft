@@ -2,26 +2,26 @@
 import Control.Applicative ( (<$>) )
 import Control.Exception (catch)
 import Control.Monad (liftM, ap, void)
-import Control.Monad.Base
+import Control.Monad.Base (MonadBase, liftBase)
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Fix (MonadFix, mfix)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Resource
 import Data.Maybe (fromJust)
-import UI.NCurses
 import System.Environment (getArgs)
 import Text.Printf (printf)
+import UI.NCurses
 
 import qualified Control.Applicative as A
 import qualified Data.Map as M
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 
-import Data.NBT.MCPE (readDat, (</>), NBTPayload(..))
-import Data.Minecraft.Block
-import Data.Minecraft.Chunk
-import Database.MCPE
+import Data.Pocketmine.NBT (readDat, (</>), NBTPayload(..))
+import Data.Pocketmine.Block
+import Data.Pocketmine.Chunk
+import Database.Pocketmine
 
 data AppState = AppState { worldX :: Integer
                          , worldZ :: Integer

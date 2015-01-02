@@ -1,15 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Data.Minecraft.Entity where
+module Data.Pocketmine.Entity where
 
 import Prelude hiding (id)
 
 import Control.Applicative ( (<$>) )
 import Data.Maybe (catMaybes)
-import Data.Minecraft.Common
-import Data.NBT.MCPE (NBT, (</>))
-import Data.NBT.MCPE ( NBTPayload(..) )
+import Data.Pocketmine.Common
+import Data.Pocketmine.NBT (NBT, (</>), NBTPayload(..))
 
-import qualified Data.NBT.MCPE as NBT
+import qualified Data.Pocketmine.NBT as NBT
 import qualified Data.Text as T
 
 data Entity = Entity { id :: EntityId
