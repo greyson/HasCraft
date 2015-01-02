@@ -246,6 +246,10 @@ prettyPrintBinary prefix bin =
 data Dat = Dat Int NBT
          deriving Show
 
+instance Searchable Dat where
+  (Dat 4 (NBT _ (CompoundTag l))) </> key = (CompoundTag l) </> key
+
+
 instance Binary Dat where
   put = undefined
   get = do

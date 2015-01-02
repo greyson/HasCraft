@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses, OverloadedStrings #-}
 import Control.Applicative ( (<$>) )
 import Control.Exception (catch)
 import Control.Monad (liftM, ap, void)
@@ -8,6 +8,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Fix (MonadFix, mfix)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Resource
+import Data.Maybe (fromJust)
 import UI.NCurses
 import System.Environment (getArgs)
 import Text.Printf (printf)
@@ -15,24 +16,39 @@ import Text.Printf (printf)
 import qualified Control.Applicative as A
 import qualified Data.Map as M
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BL
 
+import Data.NBT.MCPE (readDat, (</>), NBTPayload(..))
 import Data.Minecraft.Block
 import Data.Minecraft.Chunk
 import Database.MCPE
-
-path = "My World/db"
 
 data AppState = AppState { worldX :: Integer
                          , worldZ :: Integer
                          , database :: DB
                          }
 
-main = runRecurses $ do
-  [x, z] <- liftIO getArgs
-  db <- open path
+centerCoordinatesFromDat worldDat resolution =
+  let IntTag x = fromJust $ worldDat </> "SpawnX"
+      IntTag z = fromJust $ worldDat </> "SpawnZ"
+  in centerCoordinates (fromIntegral x) (fromIntegral z) resolution
 
-  mainLoop AppState { worldX = read x
-                    , worldZ = read z
+centerCoordinates :: Integer -> Integer -> (Integer, Integer) -> (Integer, Integer)
+centerCoordinates x z (rows, cols) =
+  (x - (cols `div` 4), z + (rows `div` 2))
+
+main = runRecurses $ do
+  (world:args) <- liftIO getArgs
+  worldDat <- readDat <$> liftIO (BL.readFile (world ++ "/level.dat"))
+
+  (x, z) <- lift screenSize >>= case args of
+    [] -> return . centerCoordinatesFromDat worldDat
+    [sX, sZ] -> return . centerCoordinates (read sX) (read sZ)
+
+  db <- open (world ++ "/db")
+
+  mainLoop AppState { worldX = x
+                    , worldZ = z
                     , database = db
                     }
 
@@ -46,13 +62,13 @@ mainLoop (state@AppState { worldX = x, worldZ = z, database = db }) = do
    Nothing -> mainLoop state
 
 handleEvent state (EventSpecialKey KeyDownArrow) =
-  state { worldX = worldX state + 1 }
+  state { worldX = worldX state + 5 }
 handleEvent state (EventSpecialKey KeyUpArrow) =
-  state { worldX = worldX state - 1 }
+  state { worldX = worldX state - 5 }
 handleEvent state (EventSpecialKey KeyRightArrow) =
-  state { worldZ = worldZ state - 1 }
+  state { worldZ = worldZ state - 5 }
 handleEvent state (EventSpecialKey KeyLeftArrow) =
-  state { worldZ = worldZ state + 1 }
+  state { worldZ = worldZ state + 5 }
 handleEvent state _ = state
 
 renderScreen topBlock leftBlock db = do
@@ -223,16 +239,18 @@ colors =
   , ((ColorBlue, ColorBlue),     [(Water, '~', [AttributeBold])
                                  ,(StationaryWater, ' ', []) ])
   , ((ColorBlack, ColorYellow),  [(Dirt, ' ', [AttributeBold])
-                                 ,(Torch, '¡', [AttributeReverse, AttributeBold]) ])
+                                 ,(Torch, '¡', [AttributeReverse, AttributeBold])
+                                 ,(OakPlank, '=', [AttributeBold]) ])
   , ((ColorYellow, ColorYellow), [(Sand, ' ', [AttributeReverse, AttributeBold])
                                  ,(Pumpkin, '☺', [AttributeReverse, AttributeBold]) ])
   , ((ColorYellow, ColorRed),    [(Lava, '~', [])
                                  ,(StationaryLava, ' ', []) ])
+  , ((ColorWhite, ColorBlack),   [(SnowCover, ' ', [AttributeBold, AttributeReverse])
+                                 ,(Snow, '#', [AttributeBold, AttributeReverse]) ])
   ]
 
 ansiBlock = M.fromList
-   [(OakPlank,           '='),
-    (Sapling,            '!'), (Bedrock,            '&'),
+   [(Sapling,            '!'), (Bedrock,            '&'),
     (GoldOre,            '$'), (IronOre,            '@'),
     (CoalOre,            'b'), (Wood,               '|'),
     (Sponge,             '¶'),
