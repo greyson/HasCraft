@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                pocketmine
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            A minecraft pocket-edition server
 -- description:
 license:             GPL-2
@@ -16,10 +16,27 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:  Data.Minecraft.Block
+  exposed-modules:  Data.Pocketmine.Block,
+                    Data.Pocketmine.Chunk,
+                    Data.Pocketmine.Common,
+                    Data.Pocketmine.Entity,
+                    Data.Pocketmine.NBT,
+                    Database.Pocketmine
+
   build-depends:    base ==4.7.*,
+                    binary ==0.7.*,
+                    bytestring ==0.10.*,
                     containers ==0.5.*,
+                    leveldb-haskell ==0.6.*,
+                    mtl ==2.2.*,
+                    reinterpret-cast ==0.1.*,
+                    resourcet ==1.1.*,
+                    text ==1.2.*,
+                    transformers ==0.4.*,
+                    transformers-base ==0.4.*,
                     vector ==0.10.*
+
+  hs-source-dirs:   src
   default-language: Haskell2010
 
 executable PocketMine
@@ -31,7 +48,9 @@ executable PocketMine
   --  "-with-rtsopts=-p -s -h -i0.1"
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.7 && <4.8, transformers >= 0.4 && < 0.5,
+  build-depends:       base >=4.7 && <4.8,
+                       pocketmine,
+                       transformers >= 0.4 && < 0.5,
                        transformers-base >= 0.4 && <0.5,
                        exceptions >=0.6 && <0.7, vector >=0.10 && <0.11,
                        leveldb-haskell >= 0.6 && < 0.7, mtl >= 2.2 && < 2.3,

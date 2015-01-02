@@ -1,22 +1,22 @@
 {-# LANGUAGE FlexibleInstances #-}
-module Data.NBT.MCPE ( NBT
+module Data.Pocketmine.NBT ( NBT
 
-                       -- manipulating
-                     , lookup
-                     , value
-                     , (</>)
+                             -- manipulating
+                           , lookup
+                           , value
+                           , (</>)
 
-                       -- dealing with payloads
-                     , TagType, NBTPayload(..)
-                     , asIntegral, asFloat, asDouble
-                     , asPosition, asRotation
+                             -- dealing with payloads
+                           , TagType, NBTPayload(..)
+                           , asIntegral, asFloat, asDouble
+                           , asPosition, asRotation
 
-                       -- loading from binary
-                     , readDat
-                     , readNbt
-                     ) where
+                                         -- loading from binary
+                           , readDat
+                           , readNbt
+                           ) where
 
-import Prelude hiding (lookup, (/))
+import Prelude hiding (lookup)
 
 import Control.Applicative ( (<$>) )
 import Control.Monad (replicateM)
@@ -32,7 +32,7 @@ import Data.ReinterpretCast (wordToFloat, wordToDouble)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Text.Printf (printf)
 
-import Data.Minecraft.Common
+import Data.Pocketmine.Common
 
 import qualified Data.Text as T
 import qualified Data.ByteString.Lazy as BL

@@ -1,4 +1,4 @@
-module Database.MCPE
+module Database.Pocketmine
        ( open
        , loadChunk
        , DB.DB
@@ -18,7 +18,7 @@ import Data.Binary.Get (getWord32le, lookAheadM)
 import Data.ByteString.Lazy (ByteString, toStrict, fromStrict)
 import Data.ByteString.Char8 (pack)
 import Data.Int (Int64(..))
-import Data.NBT.MCPE (NBT(..), readNbt)
+import Data.Pocketmine.NBT (NBT(..), readNbt)
 import Data.Word (Word8(..), Word32(..))
 import Database.LevelDB (withIterator, defaultReadOptions,
                          Compression(..), getProperty, Options(..) )
@@ -28,7 +28,7 @@ import qualified Database.LevelDB.Streaming as S
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 
-import Data.Minecraft.Chunk
+import Data.Pocketmine.Chunk
 
 defaultOptions = DB.defaultOptions{ compression = Zlib }
 

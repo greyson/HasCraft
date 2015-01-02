@@ -18,10 +18,10 @@ import qualified Data.Map as M
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 
-import Data.NBT.MCPE (readDat, (</>), NBTPayload(..))
-import Data.Minecraft.Block
-import Data.Minecraft.Chunk
-import Database.MCPE
+import Data.Pocketmine.NBT (readDat, (</>), NBTPayload(..))
+import Data.Pocketmine.Block
+import Data.Pocketmine.Chunk
+import Database.Pocketmine
 
 data AppState = AppState { worldX :: Integer
                          , worldZ :: Integer

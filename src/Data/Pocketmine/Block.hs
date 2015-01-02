@@ -1,4 +1,4 @@
-module Data.Minecraft.Block
+module Data.Pocketmine.Block
        ( BlockType(..) ) where
 
 import Data.Maybe (fromJust)
