@@ -2,16 +2,16 @@
 import Control.Applicative ( (<$>) )
 import Control.Exception (catch)
 import Control.Monad (liftM, ap, void)
-import Control.Monad.Base
+import Control.Monad.Base (MonadBase, liftBase)
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Fix (MonadFix, mfix)
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Resource
 import Data.Maybe (fromJust)
-import UI.NCurses
 import System.Environment (getArgs)
 import Text.Printf (printf)
+import UI.NCurses
 
 import qualified Control.Applicative as A
 import qualified Data.Map as M

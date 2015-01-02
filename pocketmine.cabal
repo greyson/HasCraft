@@ -16,7 +16,8 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:  Data.Pocketmine.Block,
+  exposed-modules:  Data.Pocketmine,
+                    Data.Pocketmine.Block,
                     Data.Pocketmine.Chunk,
                     Data.Pocketmine.Common,
                     Data.Pocketmine.Entity,
@@ -33,13 +34,12 @@ library
                     resourcet ==1.1.*,
                     text ==1.2.*,
                     transformers ==0.4.*,
-                    transformers-base ==0.4.*,
                     vector ==0.10.*
 
   hs-source-dirs:   src
   default-language: Haskell2010
 
-executable PocketMine
+executable ICanHasMap
   main-is:             HasMap.hs
   --ghc-options:
   --  -O2
@@ -48,27 +48,27 @@ executable PocketMine
   --  "-with-rtsopts=-p -s -h -i0.1"
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.7 && <4.8,
+  build-depends:       base              >=4.7 && <4.8,
                        pocketmine,
-                       transformers >= 0.4 && < 0.5,
-                       transformers-base >= 0.4 && <0.5,
-                       exceptions >=0.6 && <0.7, vector >=0.10 && <0.11,
-                       leveldb-haskell >= 0.6 && < 0.7, mtl >= 2.2 && < 2.3,
-                       resourcet >= 1.1 && < 1.2,
-                       utf8-string >= 0.3 && < 0.4,
-                       bytestring >= 0.10 && < 0.11,
-                       text ==1.2.*, reinterpret-cast >= 0.1 && < 0.2,
-                       binary >= 0.7 && < 0.8, containers >= 0.5 && < 0.6,
-                       ansi-terminal >= 0.5 && < 0.6,
-                       terminal-size >= 0.2 && < 0.3,
-                       ncurses >= 0.2 && < 0.3
+                       transformers      >=0.4 && < 0.5,
+                       transformers-base >=0.4 && <0.5,
+                       exceptions        >=0.6 && <0.7,
+                       mtl               >=2.2 && < 2.3,
+                       resourcet         >=1.1 && < 1.2,
+                       bytestring        >=0.10 && < 0.11,
+                       text              ==1.2.*,
+                       containers        >=0.5 && < 0.6,
+                       ncurses           >=0.2 && < 0.3
   -- hs-source-dirs:
   default-language:    Haskell2010
 
 benchmark BlockBenchmark
   main-is:          BlockBenchmark.hs
   type:             exitcode-stdio-1.0
-  build-depends:    base, containers, vector,
+  build-depends:    base,
+                    pocketmine,
+                    containers,
+                    vector,
                     criterion ==1.0.*,
                     deepseq ==1.3.*
   default-language: Haskell2010
