@@ -7,6 +7,12 @@ This really should be built in a sandbox -- and we'll need c2hs.
     cabal sandbox init
     cabal install c2hs
 
+Get the source for the leveldb with zlib alterations and correlated
+haskell bindings.
+
+    git clone git@github.com:greyson/leveldb-haskell.git leveldb-haskell
+	git clone git@github.com:greyson/leveldb-mcpe.git leveldb-haskell/leveldb-mcpe
+
 First, we need to build the leveldb specific to MCPE (with zlib
 compression). The modified library is included (git subtree).
 
